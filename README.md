@@ -11,7 +11,7 @@ Both are true metrics, so the triangle inequality can be used to prune the VP-tr
 ## Team and ownership
 | Member | Files |
 |---|---|
-| Member 1 – VP-tree core | `src/vantage_tree_1.hpp`, `README.md`, `docs/design_analysis_1.md` |
+| Member 1 – VP-tree core | `src/vantage_tree_1.hpp`, `visual/dna_tree_visualizer_1.html`, `README.md`, `docs/design_analysis_1.md` |
 | Member 2 – DNA metrics & I/O | `src/seq_distance_2.hpp`, `src/read_loader_2.hpp`, `tests/distance_tests_2.cpp` |
 | Member 3 – App, tests, tooling | `src/genisys_app_3.cpp`, `src/linear_scan_3.hpp`, `tests/tree_validation_3.cpp`, `tools/read_simulator_3.cpp`, `data/sample_reads_3.fasta`, `Makefile` |
 
@@ -23,6 +23,12 @@ make test           # runs all unit / edge-case / brute-force comparison tests
 ./gen_reads data/big.fasta 20000 100 3      # make a larger synthetic dataset
 ```
 Requires `g++` with C++17 and `make`.
+
+## Visualizer (dark-mode animation)
+Open `visual/dna_tree_visualizer_1.html` in any browser (no install, works offline).
+It shows a rotating double helix carrying the query read, the VP-tree being built node by node,
+and searches (range / k-nearest) as glowing paths with pruned subtrees in red and live distance-call counters.
+Click any tree node to use that read as the query; hover to inspect it.
 
 ## Complexity (n reads, read length L, C = cost of one distance call)
 | Operation | Time | Space |
