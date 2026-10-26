@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genisys2 · DNA × VP-Tree Visualizer</title>
+<style>
+  :root{--bg:#04050d;--cy:#22d3ee;--mg:#e879f9;--gr:#4ade80;--am:#fbbf24;--rd:#fb7185;--tx:#cbd5e1;--mu:#64748b;--pn:rgba(10,14,32,.72);--bd:rgba(120,150,255,.22)}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);overflow:hidden;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;font-size:13px}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #top{position:fixed;top:0;left:0;right:0;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:space-between;align-items:center;
+    background:linear-gradient(rgba(4,5,13,.9),transparent);pointer-events:none}
+  .brand b{font-size:18px;letter-spacing:.32em;color:#fff;text-shadow:0 0 14px var(--cy),0 0 32px var(--mg)}
+  .brand span{display:block;font-size:11px;color:var(--mu);letter-spacing:.14em;margin-top:3px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;min-width:74px;backdrop-filter:blur(6px)}
+  .chip i{display:block;font-style:normal;font-size:9px;letter-spacing:.14em;color:var(--mu);text-transform:uppercase}
+  .chip b{font-size:15px;color:#fff}
+  #sC{color:var(--cy)} #sB{color:var(--rd)} #sS{color:var(--gr)} #sF{color:var(--am)}
+  #ui{position:fixed;left:0;right:0;bottom:0;padding:26px 14px 12px;background:linear-gradient(transparent,rgba(4,5,13,.94) 30%)}
+  #log{min-height:44px;margin-bottom:8px;font-size:12px;line-height:1.5;color:var(--mu)}
+  #log div:first-child{color:#e2e8f0}
+  #log .ok{color:var(--gr)} #log .no{color:var(--rd)} #log .hi{color:var(--cy)}
+  .row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+  .grp{display:flex;align-items:center;gap:6px;background:var(--pn);border:1px solid var(--bd);border-radius:10px;padding:6px 10px;backdrop-filter:blur(6px)}
+  .grp label{font-size:10px;letter-spacing:.12em;color:var(--mu);text-transform:uppercase}
+  input,select,button{font:inherit;color:#e2e8f0;background:rgba(20,28,60,.8);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;outline:none}
+  input[type=text]{width:150px;letter-spacing:.18em;text-transform:uppercase}
+  input[type=range]{padding:0;width:96px;accent-color:var(--cy)}
+  input[type=checkbox]{accent-color:var(--mg)}
+  button{cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--cy);box-shadow:0 0 12px rgba(34,211,238,.35)}
+  button.go{background:linear-gradient(135deg,#0891b2,#a21caf);border-color:transparent;color:#fff;font-weight:700;letter-spacing:.1em}
+  #tip{position:fixed;pointer-events:none;display:none;background:rgba(8,12,28,.94);border:1px solid var(--cy);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.5;z-index:5;box-shadow:0 0 18px rgba(34,211,238,.3)}
+  #tip b{color:var(--cy);letter-spacing:.12em}
+  @media (max-width:760px){.brand b{font-size:15px}.chip{min-width:58px;padding:4px 7px}.chip b{font-size:13px}input[type=text]{width:110px}#log{min-height:30px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <div class="brand"><b>GENISYS2</b><span>DNA READ MATCHING · VANTAGE-POINT TREE</span></div>
+  <div class="chips">
+    <div class="chip"><i>reads</i><b id="sN">0</b></div>
+    <div class="chip"><i>height</i><b id="sH">0</b></div>
+    <div class="chip"><i>vp-tree calls</i><b id="sC">0</b></div>
+    <div class="chip"><i>brute force</i><b id="sB">0</b></div>
+    <div class="chip"><i>saved</i><b id="sS">0%</b></div>
+    <div class="chip"><i>found</i><b id="sF">0</b></div>
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<div id="ui">
+  <div id="log"></div>
+  <div class="row">
+    <div class="grp"><label>Query</label><input id="q" type="text" maxlength="24" spellcheck="false" autocomplete="off">
+      <button id="rnd" title="pick a random read and mutate it">Random</button>
+      <button id="mut" title="mutate one base">Mutate</button></div>
+    <div class="grp"><label>Mode</label>
+      <select id="mode"><option value="range">Range (τ)</option><option value="knn">k-nearest</option></select>
+      <input id="param" type="range" min="0" max="8" value="2"><b id="pv" style="min-width:42px">τ = 2</b></div>
+    <button id="go" class="go">▶ SEARCH</button>
+    <div class="grp"><label>Reads</label>
+      <select id="nsel"><option>15</option><option selected>31</option><option>63</option></select>
+      <label>Metric</label>
+      <select id="msel"><option value="lev">Levenshtein</option><option value="ham">Hamming</option></select>
+      <button id="build">Rebuild</button></div>
+    <div class="grp"><label>Speed</label><input id="spd" type="range" min="0.5" max="3" step="0.25" value="1">
+      <label><input id="auto" type="checkbox" checked> Auto-demo</label></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   Genisys2 · DNA × VP-Tree visualizer  (Member 1 · standalone, no libraries)
+   The tree-building and search below follow the same algorithm as the C++ code:
+     left  subtree: d(vp, r) <= mu        right subtree: d(vp, r) >= mu
+     visit left  iff d(q,vp) - tau <= mu   visit right iff d(q,vp) + tau >= mu
+   ========================================================================== */
+const $ = id => document.getElementById(id);
+const cv = $('c'), ctx = cv.getContext('2d');
+const BASES = 'ACGT';
+const BCOL = {A:'#4ade80', T:'#fb7185', G:'#fbbf24', C:'#60a5fa', N:'#94a3b8'};
+const COMP = {A:'T', T:'A', G:'C', C:'G', N:'N'};
+const TAU = Math.PI * 2;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const ease = t => 1 - Math.pow(1 - clamp(t,0,1), 3);
+const mod = (a,n) => ((a % n) + n) % n;
+
+function rng(seed){ return function(){ seed|=0; seed = seed + 0x6D2B79F5 | 0;
+  let t = Math.imul(seed ^ seed>>>15, 1|seed); t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
+  return ((t ^ t>>>14) >>> 0) / 4294967296; }; }
+
+/* ---------- distances (same as the C++ metrics) ---------- */
+function lev(a,b){
+  if (a.length < b.length) { const t=a; a=b; b=t; }
+  let prev = Array.from({length:b.length+1}, (_,j)=>j), cur = new Array(b.length+1);
+  for (let i=1;i<=a.length;i++){ cur[0]=i;
+    for (let j=1;j<=b.length;j++)
+      cur[j] = Math.min(prev[j-1] + (a[i-1]!==b[j-1] ? 1:0), prev[j]+1, cur[j-1]+1);
+    [prev,cur] = [cur,prev]; }
+  return prev[b.length];
+}
+function ham(a,b){ const m=Math.min(a.length,b.length); let d=Math.max(a.length,b.length)-m;
+  for (let i=0;i<m;i++) if (a[i]!==b[i]) d++; return d; }
+let dist = lev;
+
+/* ---------- data ---------- */
+function randStr(r,L){ let s=''; for(let i=0;i<L;i++) s += BASES[Math.floor(r()*4)]; return s; }
+function mutateStr(s,r,k){ const a=s.split('');
+  for(let i=0;i<k;i++){ const p=Math.floor(r()*a.length); let b; do{ b=BASES[Math.floor(r()*4)]; }while(b===a[p]); a[p]=b; }
+  return a.join(''); }
+function genReads(n,seed){
+  const r=rng(seed), k=Math.max(3,Math.round(n/6)), seeds=[], out=[];
+  for(let i=0;i<k;i++) seeds.push(randStr(r,14));
+  for(let i=0;i<n;i++){
+    let s = mutateStr(seeds[i%k], r, Math.floor(r()*3)).split('');
+    if (r()<0.1){ if (r()<0.5) s.splice(Math.floor(r()*s.length),1); else s.splice(Math.floor(r()*s.length),0,BASES[Math.floor(r()*4)]); }
+    out.push(s.join('')); }
+  return out;
+}
+
+/* ---------- VP-tree (mirrors vantage_tree_1.hpp) ---------- */
+function buildTree(reads){
+  const nodes=[], order=reads.map((_,i)=>i), R=rng(12345);
+  (function rec(lo,hi,depth,parent){
+    if (lo>=hi) return -1;
+    const p = lo + Math.floor(R()*(hi-lo)); [order[lo],order[p]] = [order[p],order[lo]];
+    const vp = order[lo], id = nodes.length;
+    const nd = {id, point:vp, mu:0, left:-1, right:-1, depth, parent, size:hi-lo, lsize:0, rsize:0,
+                x:0, y:0, ix:0, appear:0, egrow:0, born:false, flash:0, d:null,
+                vis:false, match:false, gold:false, cand:false, pruned:false, elit:0, epr:false};
+    nodes.push(nd);
+    if (hi-lo>1){
+      const tmp=[]; for(let i=lo+1;i<hi;i++) tmp.push([dist(reads[vp],reads[order[i]]), order[i]]);
+      tmp.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+      const mid=(tmp.length-1)>>1; nd.mu=tmp[mid][0];
+      for(let i=0;i<tmp.length;i++) order[lo+1+i]=tmp[i][1];
+      const le=lo+1+mid+1;
+      nd.lsize=le-(lo+1); nd.rsize=hi-le;
+      nd.left = rec(lo+1,le,depth+1,id);
+      nd.right= rec(le,hi,depth+1,id);
+    }
+    return id;
+  })(0,reads.length,0,-1);
+  return nodes;
+}
+function subtree(tree,i,out){ if(i<0) return out; out.push(i); subtree(tree,tree[i].left,out); subtree(tree,tree[i].right,out); return out; }
+
+/* Instrumented search: returns the list of animation events */
+function runSearch(q,mode,param){
+  const ev=[]; let calls=0; const heap=[]; const matches=[];
+  const tau = () => mode==='range' ? param : (heap.length<param ? Infinity : heap[heap.length-1].d);
+  const fmt = v => v===Infinity ? '∞' : v;
+  (function visit(ni,from){
+    const nd=tree[ni], d=dist(q,reads[nd.point]); calls++;
+    ev.push({t:'visit', node:ni, d, calls, from, mu:nd.mu});
+    if (mode==='range'){ if (d<=param){ matches.push({node:ni,d,idx:nd.point}); ev.push({t:'match',node:ni,d}); } }
+    else {
+      const last = heap[heap.length-1];
+      if (heap.length<param || d<last.d || (d===last.d && nd.point<last.idx)){
+        heap.push({node:ni,d,idx:nd.point}); heap.sort((a,b)=>a.d-b.d||a.idx-b.idx);
+        if (heap.length>param) heap.pop();
+        ev.push({t:'heap', members:heap.map(h=>h.node), tau:tau()});
+      }
+    }
+    const first = d<=nd.mu ? ['L','R'] : ['R','L'];
+    for (const side of first){
+      const child = side==='L' ? nd.left : nd.right;
+      if (child<0) continue;
+      const T = tau(), ok = side==='L' ? (d - T <= nd.mu) : (d + T >= nd.mu);
+      if (ok) visit(child,ni);
+      else ev.push({t:'prune', node:child, parent:ni, side, d, mu:nd.mu, tau:T,
+        msg: side==='L' ? `prune LEFT  : d−τ = ${fmt(d-T)} > μ = ${nd.mu}` : `prune RIGHT : d+τ = ${fmt(d+T)} < μ = ${nd.mu}`});
+    }
+  })(0,-1);
+  const finals = mode==='range' ? matches : heap.slice();
+  ev.push({t:'end', calls, finals});
+  return {ev,calls,finals};
+}
+
+/* ---------- app state ---------- */
+let W=0,H=0,DPR=1, uiH=150;
+let reads=[], tree=[], seedCount=0, query='';
+let phase='idle', buildIdx=0, buildT=0, nodeR=10;
+let ev=[], evIdx=0, evT=0, evDelay=0, cur=-1, lastCalls=0;
+let fx=[], logs=[], cmp={read:'',d:null}, autoT=0;
+let speed=1, autoOn=true, mode='range';
+const helix={flow:0, rot:0, glow:0, scan:-1, flash:-1, flashT:0};
+let stars=[], glyphs=[], bgCache=null, mouse={x:-999,y:-999};
+
+/* ---------- layout ---------- */
+function wide(){ return W>=900; }
+function narrowH(){ return Math.max(84,H*0.17); }
+function helixRect(){ return wide() ? {x:6,y:84,w:W*0.29,h:H-84-uiH-70,horiz:false}
+                                    : {x:0,y:136,w:W,h:narrowH(),horiz:true}; }
+function treeRect(){ return wide() ? {x:W*0.31,y:96,w:W*0.67,h:H-96-uiH-26}
+                                   : {x:12,y:136+narrowH()+92,w:W-24,h:H-(136+narrowH()+92)-uiH-14}; }
+function layoutTree(){
+  if(!tree.length) return;
+  let idx=0, maxD=0;
+  (function go(i){ if(i<0) return; go(tree[i].left); tree[i].ix=idx++; maxD=Math.max(maxD,tree[i].depth); go(tree[i].right); })(0);
+  const r=treeRect(), pad=Math.min(22,r.w*0.03);
+  tree.forEach(n=>{ n.x=r.x+pad+(n.ix+0.5)/tree.length*(r.w-2*pad);
+                    n.y=r.y+12+(maxD? n.depth/maxD:0)*(r.h-34); });
+  nodeR = clamp((r.w-2*pad)/tree.length*0.4, 4.5, 15);
+}
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2); W=innerWidth; H=innerHeight;
+  cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  uiH=$('ui').offsetHeight+6; layoutTree(); makeBg();
+}
+function makeBg(){
+  bgCache=document.createElement('canvas'); bgCache.width=W; bgCache.height=H;
+  const g=bgCache.getContext('2d'); g.fillStyle='#04050d'; g.fillRect(0,0,W,H);
+  let a=g.createRadialGradient(W*0.18,H*0.35,0,W*0.18,H*0.35,Math.max(W,H)*0.55);
+  a.addColorStop(0,'rgba(34,211,238,0.10)'); a.addColorStop(1,'rgba(34,211,238,0)'); g.fillStyle=a; g.fillRect(0,0,W,H);
+  let b=g.createRadialGradient(W*0.78,H*0.55,0,W*0.78,H*0.55,Math.max(W,H)*0.6);
+  b.addColorStop(0,'rgba(168,85,247,0.12)'); b.addColorStop(1,'rgba(168,85,247,0)'); g.fillStyle=b; g.fillRect(0,0,W,H);
+  let v=g.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.8);
+  v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(0,0,0,0.55)'); g.fillStyle=v; g.fillRect(0,0,W,H);
+}
+function initBackdrop(){
+  const r=rng(99);
+  stars=Array.from({length:130},()=>({x:r(),y:r(),z:0.2+r()*0.8,p:r()*TAU}));
+  glyphs=Array.from({length:46},()=>({x:r(),y:r(),v:0.012+r()*0.03,c:BASES[Math.floor(r()*4)],s:11+r()*10,a:0.05+r()*0.1}));
+}
+
+/* ---------- log / stats ---------- */
+function log(msg,cls){ logs.unshift({msg,cls:cls||''}); logs.length=Math.min(logs.length,3);
+  const el=$('log'); el.innerHTML='';
+  logs.forEach(l=>{ const d=document.createElement('div'); d.className=l.cls; d.textContent=l.msg; el.appendChild(d); }); }
+function setStats(calls,found){
+  const n=reads.length;
+  $('sN').textContent=n; $('sH').textContent=tree.reduce((m,x)=>Math.max(m,x.depth+1),0);
+  $('sC').textContent=calls; $('sB').textContent=calls?n:0;
+  $('sS').textContent = calls&&n ? Math.max(0,Math.round((1-calls/n)*100))+'%' : '0%';
+  $('sF').textContent=found;
+}
+
+/* ---------- effects ---------- */
+function ring(x,y,r1,col,dur){ fx.push({k:'ring',x,y,r1,col,t:0,dur:dur||700}); }
+function spark(x,y,tx,ty,col,delay,size,dur){ fx.push({k:'p',x,y,tx,ty,col,t:-(delay||0),dur:dur||600,size:size||2.4,arc:(Math.random()-0.5)*50}); }
+function burst(x,y,col,n){ for(let i=0;i<n;i++){ const a=Math.random()*TAU, s=18+Math.random()*34;
+  fx.push({k:'p',x,y,tx:x+Math.cos(a)*s,ty:y+Math.sin(a)*s,col,t:0,dur:550+Math.random()*300,size:1.6+Math.random()*1.6,arc:0}); } }
+
+/* ---------- build ---------- */
+function startBuild(){
+  const n=+$('nsel').value; const m=$('msel').value; dist = m==='lev'?lev:ham;
+  seedCount++; reads=genReads(n,1000+seedCount*7); tree=buildTree(reads);
+  query = mutateStr(reads[Math.floor(rng(seedCount*13)()*reads.length)], rng(seedCount), 1);
+  $('q').value=query; layoutTree(); fx=[]; ev=[]; evIdx=0; cur=-1; cmp={read:'',d:null};
+  phase='building'; buildIdx=0; buildT=0; setStats(0,0);
+  const hr=helixRect(), root=tree[0];
+  for(let i=0;i<Math.min(n,40);i++){ const sx=hr.x+hr.w/2+(Math.random()-.5)*hr.w*0.5, sy=hr.y+hr.h/2+(Math.random()-.5)*hr.h*0.6;
+    spark(sx,sy,root.x,root.y,BCOL[BASES[i%4]],i*45,2.2,900); }
+  log(`Building VP-tree from ${n} reads using ${m==='lev'?'Levenshtein':'Hamming'} distance…`,'hi');
+}
+function revealNode(i){
+  const n=tree[i]; n.born=true; n.flash=1; ring(n.x,n.y,nodeR*3.2,'#a78bfa',650);
+  if(n.parent>=0){ const p=tree[n.parent]; for(let k=0;k<3;k++) spark(p.x,p.y,n.x,n.y,n.depth%2?'#e879f9':'#22d3ee',k*60,2.2,520); }
+  const pr = (c,col,cnt) => { if(c<0||cnt<=0) return; for(let k=0;k<Math.min(cnt,7);k++) spark(n.x,n.y,tree[c].x,tree[c].y,col,k*40,1.6,700); };
+  pr(n.left,'#22d3ee',n.lsize); pr(n.right,'#e879f9',n.rsize);
+  if(n.size>1) log(`vantage point ${reads[n.point]}  μ=${n.mu}  →  ${n.lsize} inside (≤μ) | ${n.rsize} outside (≥μ)`);
+  helix.glow=Math.max(helix.glow,0.5);
+}
+
+/* ---------- search ---------- */
+function resetSearch(){
+  tree.forEach(n=>{ n.vis=n.match=n.gold=n.cand=n.pruned=n.epr=false; n.d=null; n.elit=0; });
+  fx=[]; cur=-1; cmp={read:'',d:null}; lastCalls=0;
+}
+function startSearch(){
+  if(phase==='building'||!tree.length) return;
+  query=($('q').value||'').toUpperCase().replace(/[^ACGT]/g,'');
+  if(!query){ log('Enter a query read made of A, C, G, T first.','no'); return; }
+  $('q').value=query; resetSearch();
+  mode=$('mode').value; const p=+$('param').value;
+  const r=runSearch(query,mode,p); ev=r.ev; evIdx=0; evT=0; evDelay=350; phase='searching';
+  setStats(0,0);
+  log(`Query ${query}  ·  ${mode==='range'?`range search τ=${p}`:`k-nearest k=${p}`}  ·  searching the tree…`,'hi');
+}
+function applyEvent(e){
+  const sp=speed;
+  if(e.t==='visit'){
+    const n=tree[e.node]; n.vis=true; n.d=e.d; n.flash=1; n.elit=1; cur=e.node; lastCalls=e.calls;
+    cmp={read:reads[n.point],d:e.d};
+    ring(n.x,n.y,nodeR*3.4+e.d*3,'#22d3ee',800);
+    if(e.from>=0){ const p=tree[e.from]; for(let k=0;k<5;k++) spark(p.x,p.y,n.x,n.y,'#67e8f9',k*45,2.6,480); }
+    helix.scan=0; helix.glow=Math.max(helix.glow,0.6);
+    log(`visit ${reads[n.point]}  d(q,vp)=${e.d}  μ=${e.mu}`,'hi'); setStats(e.calls,countFound());
+    evDelay=650/sp;
+  } else if(e.t==='match'){
+    const n=tree[e.node]; n.match=true; burst(n.x,n.y,'#4ade80',16); ring(n.x,n.y,nodeR*5,'#4ade80',900);
+    helix.glow=1; log(`✔ match ${reads[n.point]}  distance ${e.d}`,'ok'); setStats(lastCalls,countFound()); evDelay=420/sp;
+  } else if(e.t==='heap'){
+    tree.forEach(n=>{ n.cand=false; }); e.members.forEach(i=>{ tree[i].cand=true; });
+    log(`current best-${e.members.length} radius τ = ${e.tau===Infinity?'∞':e.tau}`); evDelay=300/sp;
+  } else if(e.t==='prune'){
+    const sub=subtree(tree,e.node,[]); sub.forEach(i=>tree[i].pruned=true); tree[e.node].epr=true;
+    const c=tree[e.node]; ring(c.x,c.y,nodeR*4,'#fb7185',700); burst(c.x,c.y,'#fb7185',8);
+    log(`✘ ${e.msg}  → skipped ${sub.length} read${sub.length>1?'s':''}`,'no'); evDelay=520/sp;
+  } else if(e.t==='end'){
+    e.finals.forEach(f=>{ const n=tree[f.node]; n.match=true; if(mode==='knn'){ n.gold=true; n.cand=false; } burst(n.x,n.y,mode==='knn'?'#fbbf24':'#4ade80',10); });
+    const best=e.finals[0];
+    if(best) cmp={read:reads[tree[best.node].point],d:best.d};
+    helix.glow=1; setStats(e.calls,e.finals.length); cur=-1;
+    log(`Done: ${e.finals.length} result(s) using ${e.calls} distance calls instead of ${reads.length} (${Math.max(0,Math.round((1-e.calls/reads.length)*100))}% saved).`,'ok');
+    phase='ready'; autoT=2600;
+  }
+}
+function countFound(){ return tree.reduce((c,n)=>c+(n.match?1:0),0); }
+
+/* ---------- update ---------- */
+function update(dt){
+  speed=+$('spd').value;
+  helix.flow += dt*0.0013*(1+speed*0.5)*(phase==='searching'?1.6:1);
+  helix.rot  += dt*0.0011;
+  helix.glow=Math.max(0,helix.glow-dt*0.0007);
+  if(helix.scan>=0){ helix.scan+=dt*0.0016; if(helix.scan>1) helix.scan=-1; }
+  if(helix.flashT>0) helix.flashT=Math.max(0,helix.flashT-dt*0.0016);
+  if(phase==='building'){
+    buildT+=dt; const step=4500/tree.length/speed;
+    while(buildIdx<tree.length && buildT>=step){ buildT-=step; revealNode(buildIdx++); }
+    if(buildIdx>=tree.length && tree.every(n=>n.appear>0.98 && n.egrow>0.98)){
+      phase='ready'; setStats(0,0); log(`Tree ready: ${tree.length} nodes, height ${tree.reduce((m,x)=>Math.max(m,x.depth+1),0)}. Every node splits its reads at the median distance μ.`,'ok'); autoT=1400; }
+  }
+  if(phase==='searching'){
+    evT+=dt;
+    while(evIdx<ev.length && evT>=evDelay){ evT-=evDelay; evDelay=0; applyEvent(ev[evIdx++]); if(phase!=='searching') break; }
+  }
+  if(phase==='ready' && autoOn){
+    autoT-=dt;
+    if(autoT<=0){ autoT=1e9;
+      const r=rng(Date.now()&0xffff);
+      query=mutateStr(reads[Math.floor(r()*reads.length)],r,1+Math.floor(r()*2)); $('q').value=query;
+      const knn=r()<0.45; $('mode').value=knn?'knn':'range'; syncParam(true);
+      $('param').value= knn ? 2+Math.floor(r()*4) : 1+Math.floor(r()*3); $('param').dispatchEvent(new Event('input'));
+      startSearch(); }
+  }
+  tree.forEach(n=>{
+    if(n.born){ n.appear=Math.min(1,n.appear+dt/450); n.egrow=Math.min(1,n.egrow+dt/420); }
+    n.flash=Math.max(0,n.flash-dt/600);
+  });
+  for(const f of fx){ f.t+=dt; } fx=fx.filter(f=>f.t<f.dur);
+}
+
+/* ---------- drawing: backdrop ---------- */
+function drawBackdrop(time){
+  ctx.globalCompositeOperation='source-over';
+  ctx.drawImage(bgCache,0,0,W,H);
+  for(const s of stars){ const tw=0.5+0.5*Math.sin(time*0.0015*s.z+s.p);
+    const x=mod(s.x*W - time*0.004*s.z*20, W), y=s.y*H;
+    ctx.fillStyle=`rgba(190,210,255,${0.12+0.5*tw*s.z})`; ctx.fillRect(x,y,s.z*1.6,s.z*1.6); }
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const g of glyphs){ const y=mod(g.y - time*0.00001*g.v*1000, 1)*H; ctx.font=`${g.s}px ui-monospace,Menlo,Consolas,monospace`;
+    ctx.fillStyle=BCOL[g.c]; ctx.globalAlpha=g.a; ctx.fillText(g.c, g.x*W, y); }
+  ctx.globalAlpha=1;
+}
+
+/* ---------- drawing: double helix ---------- */
+function drawHelix(time){
+  const R=helixRect(), M=26, L=query.length||10, horiz=R.horiz;
+  const half=(horiz?R.w:R.h)/2-14, spacing=half*2/M, amp=clamp((horiz?R.h:R.w)*0.3,18,70);
+  const cx=R.x+R.w/2, cy=R.y+R.h/2, twist=0.62;
+  const P=(u,v)=>horiz?[cx+u,cy+v]:[cx+v,cy+u];
+  const fade=u=>{ const k=Math.abs(u)/half; return clamp(1-Math.pow(k,5),0,1); };
+  const glow=6+helix.glow*22;
+  ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
+  // scan band
+  if(helix.scan>=0){ const u=(helix.scan*2-1)*half; const [x,y]=P(u,0);
+    const g=ctx.createRadialGradient(x,y,0,x,y,amp*1.8); g.addColorStop(0,'rgba(34,211,238,0.35)'); g.addColorStop(1,'rgba(34,211,238,0)');
+    ctx.fillStyle=g; ctx.fillRect(x-amp*2,y-amp*2,amp*4,amp*4); }
+  const base=Math.ceil(helix.flow);
+  const rungs=[]; for(let j=base;j<base+M;j++){ const p=j-helix.flow, u=(p-M/2)*spacing, th=p*twist+helix.rot; rungs.push({j,u,th}); }
+  const strand=(front)=>{
+    for(let s=0;s<2;s++){
+      ctx.strokeStyle= s? '#e879f9':'#22d3ee'; ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=glow;
+      for(let p=0;p<M-0.01;p+=0.25){
+        const u0=(p-M/2)*spacing, u1=(p+0.25-M/2)*spacing;
+        const t0=(p+helix.flow-Math.floor(helix.flow))*0, th0=p*twist+helix.rot+s*Math.PI, th1=(p+0.25)*twist+helix.rot+s*Math.PI;
+        const zm=Math.sin((th0+th1)/2); if((zm>=0)!==front) continue;
+        const a=fade((u0+u1)/2); if(a<0.02) continue;
+        const [x0,y0]=P(u0,amp*Math.cos(th0)), [x1,y1]=P(u1,amp*Math.cos(th1));
+        ctx.globalAlpha=a*(front?0.95:0.35); ctx.lineWidth=(front?3.2:2)+zm*1.2+helix.glow*1.5;
+        ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
+    }
+  };
+  const beads=(front)=>{
+    ctx.shadowBlur=glow*0.7;
+    for(const r of rungs){ const a=fade(r.u); if(a<0.03) continue;
+      const b=query[mod(r.j,L)]||'N';
+      for(let s=0;s<2;s++){ const th=r.th+s*Math.PI, zz=Math.sin(th); if((zz>=0)!==front) continue;
+        const ch=s?COMP[b]:b, [x,y]=P(r.u,amp*Math.cos(th)), rad=(5.5+zz*2.2)*(1+((helix.flashT>0&&mod(r.j,L)===helix.flash)?0.9*helix.flashT:0));
+        ctx.globalAlpha=a*(front?1:0.55); ctx.fillStyle=BCOL[ch]; ctx.shadowColor=BCOL[ch];
+        ctx.beginPath(); ctx.arc(x,y,rad,0,TAU); ctx.fill();
+        if(front && rad>5){ ctx.shadowBlur=0; ctx.globalAlpha=a; ctx.fillStyle='#04050d'; ctx.font='bold 9px ui-monospace,Menlo,Consolas,monospace';
+          ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(ch,x,y+0.5); ctx.shadowBlur=glow*0.7; } }
+    }
+  };
+  strand(false); beads(false);
+  ctx.shadowBlur=glow*0.5; ctx.lineWidth=2.4;
+  for(const r of rungs){ const a=fade(r.u); if(a<0.03) continue;
+    const b=query[mod(r.j,L)]||'N', [x0,y0]=P(r.u,amp*Math.cos(r.th)), [x1,y1]=P(r.u,amp*Math.cos(r.th+Math.PI)), mx=(x0+x1)/2, my=(y0+y1)/2;
+    ctx.globalAlpha=a*0.75; ctx.strokeStyle=BCOL[b]; ctx.shadowColor=BCOL[b]; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(mx,my); ctx.stroke();
+    ctx.strokeStyle=BCOL[COMP[b]]; ctx.shadowColor=BCOL[COMP[b]]; ctx.beginPath(); ctx.moveTo(mx,my); ctx.lineTo(x1,y1); ctx.stroke(); }
+  strand(true); beads(true);
+  ctx.shadowBlur=0; ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+  // labels under / beside helix
+  const ly = R.y+R.h+(horiz?10:20);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='10px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#64748b';
+  ctx.fillText('QUERY READ (5′ → 3′)  ·  complement on opposite strand', cx, ly);
+  const row=(txt,y,other,label)=>{ const step=Math.min(17,(R.w-70)/Math.max(txt.length,1)); const x0=cx-(txt.length-1)*step/2;
+    ctx.font=`bold ${Math.min(15,step+1)}px ui-monospace,Menlo,Consolas,monospace`;
+    for(let i=0;i<txt.length;i++){ const same = other ? other[i]===txt[i] : true;
+      ctx.fillStyle = other ? (same?'#4ade80':'#fb7185') : BCOL[txt[i]]||'#fff'; ctx.fillText(txt[i],x0+i*step,y); }
+    ctx.font='9px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#64748b'; ctx.textAlign='right'; ctx.fillText(label,x0-step*0.7,y); ctx.textAlign='center'; };
+  row(query,ly+20,null,'q');
+  if(cmp.read){ row(cmp.read,ly+38,query,'vp'); ctx.font='bold 11px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#22d3ee';
+    ctx.fillText(`distance = ${cmp.d}`,cx,ly+58); }
+}
+
+/* ---------- drawing: tree ---------- */
+function bz(a,b,t){ const my=(a.y+b.y)/2, u=1-t;
+  return [u*u*u*a.x+3*u*u*t*a.x+3*u*t*t*b.x+t*t*t*b.x, u*u*u*a.y+3*u*u*t*my+3*u*t*t*my+t*t*t*b.y]; }
+function drawTree(time){
+  if(!tree.length) return;
+  ctx.globalCompositeOperation='source-over'; ctx.lineCap='round';
+  // edges
+  for(const n of tree){ if(n.parent<0||!n.born) continue; const p=tree[n.parent], g=ease(n.egrow); if(g<=0.01) continue;
+    ctx.beginPath(); for(let i=0;i<=24;i++){ const t=i/24*g, q=bz(p,n,t); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }
+    if(n.epr){ ctx.setLineDash([4,6]); ctx.strokeStyle='rgba(251,113,133,0.4)'; ctx.lineWidth=1.4; ctx.shadowBlur=0; }
+    else if(n.elit){ ctx.setLineDash([]); ctx.strokeStyle='#22d3ee'; ctx.lineWidth=2.6; ctx.shadowColor='#22d3ee'; ctx.shadowBlur=12; }
+    else { ctx.setLineDash([]); ctx.strokeStyle=n.pruned?'rgba(251,113,133,0.18)':'rgba(130,150,255,0.26)'; ctx.lineWidth=1.3; ctx.shadowBlur=0; }
+    ctx.stroke(); }
+  ctx.setLineDash([]); ctx.shadowBlur=0;
+  // nodes
+  for(const n of tree){ if(n.appear<=0.01) continue;
+    let col='#7c8cff', a=0.9;
+    if(n.gold) col='#fbbf24'; else if(n.match) col='#4ade80'; else if(n.cand) col='#f59e0b'; else if(n.vis) col='#22d3ee';
+    else if(n.pruned){ col='#fb7185'; a=0.45; }
+    const r=nodeR*(0.35+0.65*ease(n.appear))*(1+0.55*n.flash)+(n.id===cur?Math.sin(time*0.012)*1.6+2:0);
+    ctx.globalAlpha=a*ease(n.appear); ctx.shadowColor=col; ctx.shadowBlur=(n.vis||n.match||n.cand?18:9)+n.flash*16;
+    const g=ctx.createRadialGradient(n.x-r*0.3,n.y-r*0.3,r*0.1,n.x,n.y,r); g.addColorStop(0,'#ffffff'); g.addColorStop(0.35,col); g.addColorStop(1,col);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(n.x,n.y,r,0,TAU); ctx.fill();
+    ctx.shadowBlur=0;
+    if(n.id===0){ ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(n.x,n.y,r+4,0,TAU); ctx.stroke(); }
+    if(n.d!==null && nodeR>=6){ ctx.globalAlpha=0.95; ctx.fillStyle='#e2e8f0'; ctx.font=`bold ${Math.round(clamp(nodeR*0.9,9,12))}px ui-monospace,Menlo,Consolas,monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(n.d,n.x,n.y-r-3); }
+    if(n.pruned && n.epr && nodeR>=6){ ctx.globalAlpha=0.9; ctx.strokeStyle='#fb7185'; ctx.lineWidth=2; const k=r*0.55;
+      ctx.beginPath(); ctx.moveTo(n.x-k,n.y-k); ctx.lineTo(n.x+k,n.y+k); ctx.moveTo(n.x+k,n.y-k); ctx.lineTo(n.x-k,n.y+k); ctx.stroke(); }
+    ctx.globalAlpha=1; }
+  // legend
+  const tr=treeRect(); ctx.font='10px ui-monospace,Menlo,Consolas,monospace'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  const items=[['#7c8cff','unvisited'],['#22d3ee','visited'],['#4ade80','match'],['#fbbf24','k-best'],['#fb7185','pruned']];
+  let lx=tr.x+4; const ly=tr.y-12;
+  for(const [c,t] of items){ ctx.fillStyle=c; ctx.shadowColor=c; ctx.shadowBlur=8; ctx.beginPath(); ctx.arc(lx,ly,4,0,TAU); ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle='#64748b'; ctx.fillText(t,lx+9,ly); lx+=ctx.measureText(t).width+28; }
+}
+
+/* ---------- drawing: effects ---------- */
+function drawFx(){
+  ctx.globalCompositeOperation='lighter';
+  for(const f of fx){ if(f.t<0) continue; const k=clamp(f.t/f.dur,0,1);
+    if(f.k==='ring'){ ctx.globalAlpha=(1-k)*0.8; ctx.strokeStyle=f.col; ctx.lineWidth=2.2*(1-k)+0.6; ctx.shadowColor=f.col; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(f.x,f.y,f.r1*ease(k),0,TAU); ctx.stroke(); }
+    else { const e=ease(k), x=f.x+(f.tx-f.x)*e + Math.sin(k*Math.PI)*f.arc, y=f.y+(f.ty-f.y)*e;
+      ctx.globalAlpha=Math.sin(k*Math.PI)*0.95+0.05; ctx.fillStyle=f.col; ctx.shadowColor=f.col; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(x,y,f.size*(1.1-0.4*k),0,TAU); ctx.fill(); } }
+  ctx.shadowBlur=0; ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+}
+// particles waiting for their delay
+function fxStartFix(){ /* t<0 means delayed start; handled in drawFx and update */ }
+
+/* ---------- main loop ---------- */
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(50,now-last); last=now;
+  update(dt); drawBackdrop(now); drawHelix(now); drawTree(now); drawFx();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- interaction ---------- */
+function manual(){ if(autoOn){ autoOn=false; $('auto').checked=false; } }
+function syncParam(fromAuto){
+  const m=$('mode').value, p=$('param');
+  if(m==='range'){ p.min=0; p.max=8; if(!fromAuto && +p.value>8) p.value=2; } else { p.min=1; p.max=8; if(+p.value<1) p.value=3; }
+  $('pv').textContent = (m==='range'?'τ = ':'k = ')+p.value;
+}
+$('mode').addEventListener('change',()=>{ manual(); const p=$('param'); p.value = $('mode').value==='range'?2:3; syncParam(); });
+$('param').addEventListener('input',()=>{ $('pv').textContent=($('mode').value==='range'?'τ = ':'k = ')+$('param').value; });
+$('go').addEventListener('click',()=>{ manual(); startSearch(); });
+$('build').addEventListener('click',()=>{ manual(); startBuild(); });
+$('nsel').addEventListener('change',()=>{ manual(); startBuild(); });
+$('msel').addEventListener('change',()=>{ manual(); startBuild(); });
+$('rnd').addEventListener('click',()=>{ manual(); if(!reads.length) return; const r=rng(Date.now()&0xffff);
+  query=mutateStr(reads[Math.floor(r()*reads.length)],r,1+Math.floor(r()*2)); $('q').value=query; helix.flash=Math.floor(r()*query.length); helix.flashT=1; });
+$('mut').addEventListener('click',()=>{ manual(); query=($('q').value||'').toUpperCase().replace(/[^ACGT]/g,''); if(!query) return;
+  const r=rng(Date.now()&0xffff); const before=query; query=mutateStr(query,r,1);
+  for(let i=0;i<query.length;i++) if(query[i]!==before[i]){ helix.flash=i; helix.flashT=1; burst(innerWidth*0.15,innerHeight*0.4,BCOL[query[i]],14); }
+  $('q').value=query; });
+$('q').addEventListener('input',e=>{ manual(); const v=e.target.value.toUpperCase().replace(/[^ACGT]/g,''); e.target.value=v; if(v) query=v; });
+$('q').addEventListener('keydown',e=>{ if(e.key==='Enter'){ manual(); startSearch(); } });
+$('auto').addEventListener('change',e=>{ autoOn=e.target.checked; if(autoOn && phase==='ready') autoT=800; });
+function nodeAt(x,y){ let best=null,bd=1e9; for(const n of tree){ if(n.appear<0.3) continue; const d=Math.hypot(n.x-x,n.y-y); if(d<nodeR+7&&d<bd){bd=d;best=n;} } return best; }
+cv.addEventListener('mousemove',e=>{ const n=nodeAt(e.clientX,e.clientY), tip=$('tip');
+  if(!n){ tip.style.display='none'; cv.style.cursor='default'; return; }
+  cv.style.cursor='pointer'; tip.style.display='block';
+  tip.innerHTML=`<b>${reads[n.point]}</b><br>depth ${n.depth} · μ = ${n.mu}<br>inside ${n.lsize} · outside ${n.rsize}`+(n.d!==null?`<br>d(query) = ${n.d}`:'')+`<br><span style="color:#64748b">click = use as query</span>`;
+  tip.style.left=Math.min(innerWidth-190,e.clientX+14)+'px'; tip.style.top=Math.min(innerHeight-120,e.clientY+14)+'px'; });
+cv.addEventListener('mouseleave',()=>{ $('tip').style.display='none'; });
+cv.addEventListener('click',e=>{ const n=nodeAt(e.clientX,e.clientY); if(!n||phase==='building') return;
+  manual(); query=reads[n.point]; $('q').value=query; startSearch(); });
+window.addEventListener('resize',resize);
+
+/* ---------- boot ---------- */
+initBackdrop(); resize(); syncParam(); startBuild();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
