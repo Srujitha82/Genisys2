@@ -1,7 +1,4 @@
-// ============================================================================
-//  MEMBER 3  -  Interactive console application (demo for the evaluation)
-//  Usage:  ./genisys [reads_file] [hamming|levenshtein]
-// ============================================================================
+
 #include <chrono>
 #include <iostream>
 #include <map>
