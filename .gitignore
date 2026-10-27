@@ -1,0 +1,6 @@
+genisys
+gen_reads
+test_metrics
+test_edge
+tmp_test_reads.fasta
+*.o
