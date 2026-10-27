@@ -1,7 +1,4 @@
-// ============================================================================
-//  MEMBER 2  -  DNA distance metrics + sequence utilities
-//  All distance functions here are TRUE metrics (needed for VP-tree pruning).
-// ============================================================================
+
 #pragma once
 #include <algorithm>
 #include <cctype>
