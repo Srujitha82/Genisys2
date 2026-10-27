@@ -1,12 +1,4 @@
-// ============================================================================
-//  MEMBER 1  -  VP-Tree core (array-based, index-linked nodes)
-//  Project : Genisys2 - DNA read matching using a Vantage-Point Tree
-//
-//  Invariant for every node (vantage point vp, radius mu):
-//      LEFT  subtree : every read r has  d(vp, r) <= mu
-//      RIGHT subtree : every read r has  d(vp, r) >= mu
-//  Triangle inequality lets us prune whole subtrees during search.
-// ============================================================================
+
 #pragma once
 #include <algorithm>
 #include <climits>
