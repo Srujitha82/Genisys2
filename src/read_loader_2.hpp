@@ -1,6 +1,4 @@
-// ============================================================================
-//  MEMBER 2  -  Reading / writing reads (FASTA or one-read-per-line text)
-// ============================================================================
+
 #pragma once
 #include <fstream>
 #include <string>
