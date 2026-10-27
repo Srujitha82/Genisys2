@@ -86,7 +86,7 @@
 const $ = id => document.getElementById(id);
 const cv = $('c'), ctx = cv.getContext('2d');
 const BASES = 'ACGT';
-const BCOL = {A:'#4ade80', T:'#fb7185', G:'#fbbf24', C:'#60a5fa', N:'#94a3b8'};
+const BCOL = {A:'#d9544d', T:'#5fa070', G:'#e0a93b', C:'#4f7fc4', N:'#94a3b8'};
 const COMP = {A:'T', T:'A', G:'C', C:'G', N:'N'};
 const TAU = Math.PI * 2;
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
@@ -197,11 +197,8 @@ let stars=[], glyphs=[], bgCache=null, mouse={x:-999,y:-999};
 
 /* ---------- layout ---------- */
 function wide(){ return W>=900; }
-function narrowH(){ return Math.max(84,H*0.17); }
-function helixRect(){ return wide() ? {x:6,y:84,w:W*0.29,h:H-84-uiH-70,horiz:false}
-                                    : {x:0,y:136,w:W,h:narrowH(),horiz:true}; }
-function treeRect(){ return wide() ? {x:W*0.31,y:96,w:W*0.67,h:H-96-uiH-26}
-                                   : {x:12,y:136+narrowH()+92,w:W-24,h:H-(136+narrowH()+92)-uiH-14}; }
+function helixRect(){ const y=wide()?72:136, h=wide()?118:100; return {x:0,y,w:W,h,horiz:true}; }
+function treeRect(){ const hr=helixRect(), y0=hr.y+hr.h+54; return {x:12,y:y0,w:W-24,h:H-y0-uiH-14}; }
 function layoutTree(){
   if(!tree.length) return;
   let idx=0, maxD=0;
@@ -229,7 +226,7 @@ function makeBg(){
 function initBackdrop(){
   const r=rng(99);
   stars=Array.from({length:130},()=>({x:r(),y:r(),z:0.2+r()*0.8,p:r()*TAU}));
-  glyphs=Array.from({length:46},()=>({x:r(),y:r(),v:0.012+r()*0.03,c:BASES[Math.floor(r()*4)],s:11+r()*10,a:0.05+r()*0.1}));
+  glyphs=Array.from({length:46},()=>({x:r(),y:r(),v:0.012+r()*0.03,c:BASES[Math.floor(r()*4)],s:11+r()*10,a:0.03+r()*0.06}));
 }
 
 /* ---------- log / stats ---------- */
@@ -321,7 +318,7 @@ function countFound(){ return tree.reduce((c,n)=>c+(n.match?1:0),0); }
 function update(dt){
   speed=+$('spd').value;
   helix.flow += dt*0.0013*(1+speed*0.5)*(phase==='searching'?1.6:1);
-  helix.rot  += dt*0.0011;
+  helix.rot  += dt*0.0009;
   helix.glow=Math.max(0,helix.glow-dt*0.0007);
   if(helix.scan>=0){ helix.scan+=dt*0.0016; if(helix.scan>1) helix.scan=-1; }
   if(helix.flashT>0) helix.flashT=Math.max(0,helix.flashT-dt*0.0016);
@@ -364,67 +361,82 @@ function drawBackdrop(time){
   ctx.globalAlpha=1;
 }
 
-/* ---------- drawing: double helix ---------- */
+/* ---------- drawing: double helix (horizontal, lettered beads, depth shading) ---------- */
 function drawHelix(time){
-  const R=helixRect(), M=26, L=query.length||10, horiz=R.horiz;
-  const half=(horiz?R.w:R.h)/2-14, spacing=half*2/M, amp=clamp((horiz?R.h:R.w)*0.3,18,70);
-  const cx=R.x+R.w/2, cy=R.y+R.h/2, twist=0.62;
-  const P=(u,v)=>horiz?[cx+u,cy+v]:[cx+v,cy+u];
-  const fade=u=>{ const k=Math.abs(u)/half; return clamp(1-Math.pow(k,5),0,1); };
-  const glow=6+helix.glow*22;
-  ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
-  // scan band
-  if(helix.scan>=0){ const u=(helix.scan*2-1)*half; const [x,y]=P(u,0);
-    const g=ctx.createRadialGradient(x,y,0,x,y,amp*1.8); g.addColorStop(0,'rgba(34,211,238,0.35)'); g.addColorStop(1,'rgba(34,211,238,0)');
-    ctx.fillStyle=g; ctx.fillRect(x-amp*2,y-amp*2,amp*4,amp*4); }
-  const base=Math.ceil(helix.flow);
-  const rungs=[]; for(let j=base;j<base+M;j++){ const p=j-helix.flow, u=(p-M/2)*spacing, th=p*twist+helix.rot; rungs.push({j,u,th}); }
-  const strand=(front)=>{
+  const R=helixRect(), L=query.length||10;
+  const sp=clamp((W-70)/L,14,66), x0=W/2-(L-1)*sp/2, x1=x0+(L-1)*sp;
+  const cy=R.y+R.h/2, amp=Math.min(40,R.h*0.36), twist=0.72, rot=helix.rot;
+  const k=Math.min(1,sp/42);                          // bead scale for narrow screens
+  const phaseAt=x=>(x-x0)/sp*twist+rot;
+  const yA=x=>cy+amp*Math.cos(phaseAt(x)), yB=x=>cy-amp*Math.cos(phaseAt(x));
+  const zA=x=>Math.sin(phaseAt(x));                   // >0 : strand A is in front
+  const xs=x0-sp*0.7, xe=x1+sp*0.7, step=4;
+  ctx.globalCompositeOperation='source-over'; ctx.lineCap='round'; ctx.lineJoin='round';
+  const glow=helix.glow;
+
+  const strands=(front)=>{
     for(let s=0;s<2;s++){
-      ctx.strokeStyle= s? '#e879f9':'#22d3ee'; ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=glow;
-      for(let p=0;p<M-0.01;p+=0.25){
-        const u0=(p-M/2)*spacing, u1=(p+0.25-M/2)*spacing;
-        const t0=(p+helix.flow-Math.floor(helix.flow))*0, th0=p*twist+helix.rot+s*Math.PI, th1=(p+0.25)*twist+helix.rot+s*Math.PI;
-        const zm=Math.sin((th0+th1)/2); if((zm>=0)!==front) continue;
-        const a=fade((u0+u1)/2); if(a<0.02) continue;
-        const [x0,y0]=P(u0,amp*Math.cos(th0)), [x1,y1]=P(u1,amp*Math.cos(th1));
-        ctx.globalAlpha=a*(front?0.95:0.35); ctx.lineWidth=(front?3.2:2)+zm*1.2+helix.glow*1.5;
-        ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
+      for(let x=xs;x<xe;x+=step){
+        const xm=x+step/2, z=s?-zA(xm):zA(xm);
+        if((z>=0)!==front) continue;
+        const edge=Math.min(1,Math.min(x-xs,xe-x)/(sp*0.7));
+        ctx.strokeStyle=front?`rgba(176,196,235,${0.95*edge})`:`rgba(120,140,190,${0.40*edge})`;
+        ctx.lineWidth=(front?2.8:1.8)+glow*1.2;
+        ctx.shadowColor='#22d3ee'; ctx.shadowBlur=glow*14;
+        const ya=s?yB(x):yA(x), yb=s?yB(x+step):yA(x+step);
+        ctx.beginPath(); ctx.moveTo(x,ya); ctx.lineTo(x+step,yb); ctx.stroke();
+      }
     }
+    ctx.shadowBlur=0;
   };
   const beads=(front)=>{
-    ctx.shadowBlur=glow*0.7;
-    for(const r of rungs){ const a=fade(r.u); if(a<0.03) continue;
-      const b=query[mod(r.j,L)]||'N';
-      for(let s=0;s<2;s++){ const th=r.th+s*Math.PI, zz=Math.sin(th); if((zz>=0)!==front) continue;
-        const ch=s?COMP[b]:b, [x,y]=P(r.u,amp*Math.cos(th)), rad=(5.5+zz*2.2)*(1+((helix.flashT>0&&mod(r.j,L)===helix.flash)?0.9*helix.flashT:0));
-        ctx.globalAlpha=a*(front?1:0.55); ctx.fillStyle=BCOL[ch]; ctx.shadowColor=BCOL[ch];
-        ctx.beginPath(); ctx.arc(x,y,rad,0,TAU); ctx.fill();
-        if(front && rad>5){ ctx.shadowBlur=0; ctx.globalAlpha=a; ctx.fillStyle='#04050d'; ctx.font='bold 9px ui-monospace,Menlo,Consolas,monospace';
-          ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(ch,x,y+0.5); ctx.shadowBlur=glow*0.7; } }
+    for(let i=0;i<L;i++){
+      const x=x0+i*sp, ph=i*twist+rot, base=query[i], comp=COMP[base]||'N';
+      for(let s=0;s<2;s++){
+        const z=s?-Math.sin(ph):Math.sin(ph); if((z>=0)!==front) continue;
+        const y=s?cy-amp*Math.cos(ph):cy+amp*Math.cos(ph), ch=s?comp:base;
+        const bump=(helix.flashT>0&&helix.flash===i)?1+0.7*helix.flashT:1;
+        const r=(front?11.5:8.5)*k*bump;
+        ctx.globalAlpha=front?1:0.55; ctx.fillStyle=BCOL[ch]||BCOL.N;
+        ctx.shadowColor=BCOL[ch]||BCOL.N; ctx.shadowBlur=front?(4+glow*16):0;
+        ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill(); ctx.shadowBlur=0;
+        ctx.fillStyle='#ffffff'; ctx.font=`bold ${Math.max(8,Math.round(r*1.05))}px ui-monospace,Menlo,Consolas,monospace`;
+        ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(ch,x,y+0.5);
+        ctx.globalAlpha=1;
+      }
     }
   };
-  strand(false); beads(false);
-  ctx.shadowBlur=glow*0.5; ctx.lineWidth=2.4;
-  for(const r of rungs){ const a=fade(r.u); if(a<0.03) continue;
-    const b=query[mod(r.j,L)]||'N', [x0,y0]=P(r.u,amp*Math.cos(r.th)), [x1,y1]=P(r.u,amp*Math.cos(r.th+Math.PI)), mx=(x0+x1)/2, my=(y0+y1)/2;
-    ctx.globalAlpha=a*0.75; ctx.strokeStyle=BCOL[b]; ctx.shadowColor=BCOL[b]; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(mx,my); ctx.stroke();
-    ctx.strokeStyle=BCOL[COMP[b]]; ctx.shadowColor=BCOL[COMP[b]]; ctx.beginPath(); ctx.moveTo(mx,my); ctx.lineTo(x1,y1); ctx.stroke(); }
-  strand(true); beads(true);
-  ctx.shadowBlur=0; ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
-  // labels under / beside helix
-  const ly = R.y+R.h+(horiz?10:20);
-  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const rungs=()=>{
+    for(let i=0;i<L;i++){ const x=x0+i*sp, ph=i*twist+rot;
+      ctx.strokeStyle='rgba(150,168,205,0.55)'; ctx.lineWidth=3.2*Math.max(0.6,k); ctx.lineCap='butt';
+      ctx.beginPath(); ctx.moveTo(x,cy+amp*Math.cos(ph)); ctx.lineTo(x,cy-amp*Math.cos(ph)); ctx.stroke(); }
+    ctx.lineCap='round';
+  };
+
+  // moving light band while the tree is being searched
+  if(helix.scan>=0){ const bx=xs+(xe-xs)*helix.scan;
+    const g=ctx.createLinearGradient(bx-60,0,bx+60,0); g.addColorStop(0,'rgba(34,211,238,0)'); g.addColorStop(.5,'rgba(34,211,238,0.22)'); g.addColorStop(1,'rgba(34,211,238,0)');
+    ctx.fillStyle=g; ctx.fillRect(bx-60,cy-amp-22,120,amp*2+44); }
+
+  strands(false); beads(false); rungs(); strands(true); beads(true);
+
+  // captions + compared read, aligned under each rung
+  ctx.textBaseline='middle'; ctx.textAlign='left';
   ctx.font='10px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#64748b';
-  ctx.fillText('QUERY READ (5′ → 3′)  ·  complement on opposite strand', cx, ly);
-  const row=(txt,y,other,label)=>{ const step=Math.min(17,(R.w-70)/Math.max(txt.length,1)); const x0=cx-(txt.length-1)*step/2;
-    ctx.font=`bold ${Math.min(15,step+1)}px ui-monospace,Menlo,Consolas,monospace`;
-    for(let i=0;i<txt.length;i++){ const same = other ? other[i]===txt[i] : true;
-      ctx.fillStyle = other ? (same?'#4ade80':'#fb7185') : BCOL[txt[i]]||'#fff'; ctx.fillText(txt[i],x0+i*step,y); }
-    ctx.font='9px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#64748b'; ctx.textAlign='right'; ctx.fillText(label,x0-step*0.7,y); ctx.textAlign='center'; };
-  row(query,ly+20,null,'q');
-  if(cmp.read){ row(cmp.read,ly+38,query,'vp'); ctx.font='bold 11px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#22d3ee';
-    ctx.fillText(`distance = ${cmp.d}`,cx,ly+58); }
+  ctx.fillText('QUERY READ · 5′ → 3′ · the lower strand is its complement',Math.max(10,x0-sp*0.5),R.y+4);
+  const ry=R.y+R.h+16, fs=Math.max(9,Math.min(15,sp*0.42));
+  if(cmp.read){
+    ctx.font=`bold ${fs}px ui-monospace,Menlo,Consolas,monospace`; ctx.textAlign='center';
+    for(let i=0;i<cmp.read.length&&i<L;i++){ ctx.fillStyle=cmp.read[i]===query[i]?'#4ade80':'#fb7185'; ctx.fillText(cmp.read[i],x0+i*sp,ry); }
+    const roomL=x0-sp*0.6>80, roomR=x1+sp*0.9+110<W;
+    if(roomL){ ctx.textAlign='right'; ctx.font='10px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#64748b'; ctx.fillText('compared read',x0-sp*0.6,ry); }
+    ctx.font='bold 12px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#22d3ee';
+    if(roomR){ ctx.textAlign='left'; ctx.fillText(`distance = ${cmp.d}`,x1+sp*0.9,ry); }
+    else { ctx.textAlign='center'; ctx.fillText(`compared read · distance = ${cmp.d}`,W/2,ry+15); }
+  } else {
+    ctx.textAlign='center'; ctx.font='11px ui-monospace,Menlo,Consolas,monospace'; ctx.fillStyle='#475569';
+    ctx.fillText('the read the search is comparing with will appear here, letter by letter',W/2,ry);
+  }
 }
 
 /* ---------- drawing: tree ---------- */
@@ -504,7 +516,7 @@ $('rnd').addEventListener('click',()=>{ manual(); if(!reads.length) return; cons
   query=mutateStr(reads[Math.floor(r()*reads.length)],r,1+Math.floor(r()*2)); $('q').value=query; helix.flash=Math.floor(r()*query.length); helix.flashT=1; });
 $('mut').addEventListener('click',()=>{ manual(); query=($('q').value||'').toUpperCase().replace(/[^ACGT]/g,''); if(!query) return;
   const r=rng(Date.now()&0xffff); const before=query; query=mutateStr(query,r,1);
-  for(let i=0;i<query.length;i++) if(query[i]!==before[i]){ helix.flash=i; helix.flashT=1; burst(innerWidth*0.15,innerHeight*0.4,BCOL[query[i]],14); }
+  for(let i=0;i<query.length;i++) if(query[i]!==before[i]){ helix.flash=i; helix.flashT=1; burst(innerWidth/2,helixRect().y+60,BCOL[query[i]],14); }
   $('q').value=query; });
 $('q').addEventListener('input',e=>{ manual(); const v=e.target.value.toUpperCase().replace(/[^ACGT]/g,''); e.target.value=v; if(v) query=v; });
 $('q').addEventListener('keydown',e=>{ if(e.key==='Enter'){ manual(); startSearch(); } });
