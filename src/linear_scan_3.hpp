@@ -1,6 +1,4 @@
-// ============================================================================
-//  MEMBER 3  -  Brute-force baseline (used for correctness checking)
-// ============================================================================
+
 #pragma once
 #include <algorithm>
 #include <string>
