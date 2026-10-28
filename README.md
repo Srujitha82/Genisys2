@@ -24,11 +24,7 @@ make test           # runs all unit / edge-case / brute-force comparison tests
 ```
 Requires `g++` with C++17 and `make`.
 
-## Visualizer (dark-mode animation)
-Open `visual/dna_tree_visualizer_1.html` in any browser (no install, works offline).
-It shows a rotating double helix carrying the query read, the VP-tree being built node by node,
-and searches (range / k-nearest) as glowing paths with pruned subtrees in red and live distance-call counters.
-Click any tree node to use that read as the query; hover to inspect it.
+
 
 ## Complexity (n reads, read length L, C = cost of one distance call)
 | Operation | Time | Space |
