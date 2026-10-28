@@ -1,1 +1,573 @@
-<meta http-equiv="refresh" content="0; url=visual/dna_tree_visualizer_1.html"> 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genisys2 Lab · DNA read matching with a VP-tree</title>
+<style>
+  :root{--bg:#070914;--pn:#0d1226;--pn2:#121935;--bd:#222c52;--tx:#cbd5e1;--mu:#7b88a8;
+        --cy:#22d3ee;--mg:#e879f9;--am:#fbbf24;--gr:#4ade80;--rd:#fb7185;--bl:#7c8cff}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--tx);height:100%;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;font-size:13px}
+  body{display:flex;flex-direction:column;background:radial-gradient(1200px 600px at 75% 5%,#101a3d 0%,#070914 60%)}
+  header{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--bd)}
+  .brand b{font-size:16px;letter-spacing:.28em;color:#fff}
+  .brand span{display:block;font-size:10px;color:var(--mu);letter-spacing:.12em;margin-top:3px}
+  .tabs{display:flex;gap:6px}
+  .tab{padding:7px 14px;border:1px solid var(--bd);background:var(--pn);color:var(--mu);border-radius:8px;cursor:pointer;font:inherit;letter-spacing:.08em}
+  .tab.on{color:#fff;border-color:var(--cy);box-shadow:0 0 14px rgba(34,211,238,.25)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:3px 10px;min-width:68px}
+  .chip i{display:block;font-style:normal;font-size:9px;letter-spacing:.12em;color:var(--mu);text-transform:uppercase}
+  .chip b{font-size:14px;color:#fff}
+  main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(340px,470px) 1fr;gap:12px;padding:12px 16px}
+  #left{background:var(--pn);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;overflow:auto;min-height:0}
+  #right{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
+  #treeBox{flex:1;min-height:200px;background:var(--pn);border:1px solid var(--bd);border-radius:12px;padding:6px;display:flex;flex-direction:column;min-width:0}
+  #tree{flex:1;min-height:0;width:100%}
+  #legend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:4px 8px 0;font-size:10px;color:var(--mu)}
+  #legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  #stepTitle{font-size:11px;letter-spacing:.14em;color:var(--cy);margin-bottom:8px}
+  #stepText{font-size:14px;line-height:1.6;color:#e2e8f0}
+  #stepText b{color:#fff} .c1{color:var(--cy)} .c2{color:var(--mg)} .c3{color:var(--am)} .c4{color:var(--gr)} .c5{color:var(--rd)}
+  #viz{margin:12px 0 2px} svg.nl{width:100%;height:auto;display:block;background:#0a0f22;border:1px solid var(--bd);border-radius:8px}
+  table.t{border-collapse:collapse;width:100%;margin-top:10px;font-size:13px}
+  table.t th{font-size:10px;letter-spacing:.12em;color:var(--mu);text-align:left;padding:4px 8px;font-weight:400;text-transform:uppercase}
+  table.t td{padding:4px 8px;border-top:1px solid #1a2244}
+  table.t tr.cut td{border-top:2px dashed var(--am)} table.t tr.click{cursor:pointer} table.t tr.click:hover td{background:#141c3d} table.t tr.sel td{background:#182246}
+  .tag{font-size:11px;padding:1px 8px;border-radius:10px} .in{background:rgba(34,211,238,.15);color:var(--cy)} .out{background:rgba(232,121,249,.15);color:var(--mg)}
+  .chipr{display:inline-block;padding:2px 8px;margin:2px 3px 2px 0;border:1px solid var(--bd);border-radius:6px;background:#0a0f22}
+  .chipr.vp{border-color:var(--am);color:var(--am);box-shadow:0 0 10px rgba(251,191,36,.3)} .chipr.g{border-color:var(--gr);color:var(--gr)}
+  .box{margin-top:12px;padding:9px 12px;border-left:3px solid var(--am);background:rgba(251,191,36,.06);border-radius:0 8px 8px 0;line-height:1.55;color:#e2e8f0}
+  .box.g{border-color:var(--gr);background:rgba(74,222,128,.07)} .box.r{border-color:var(--rd);background:rgba(251,113,133,.07)}
+  .eq{font-size:15px;color:#fff;margin:6px 0}
+  .calc{margin-top:14px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:#0a0f22}
+  .calc h4{margin:0 0 6px;font-size:10px;letter-spacing:.14em;color:var(--am);font-weight:400;text-transform:uppercase}
+  .calc p{margin:4px 0;line-height:1.5;color:var(--tx);font-size:12px}
+  .scroll{overflow:auto;max-width:100%}
+  table.dp{border-collapse:collapse;font-size:12px;margin-top:6px}
+  table.dp td,table.dp th{min-width:24px;height:23px;text-align:center;padding:0 3px;border:1px solid #1a2244}
+  table.dp th{color:var(--cy);font-weight:700;background:#0d1430}
+  table.dp td{color:#64748b;opacity:0;transition:opacity .12s}
+  table.dp td.on{opacity:1;color:#e2e8f0}
+  table.dp.done td.path.on{background:rgba(251,191,36,.22);color:var(--am);font-weight:700}
+  table.dp.done td.fin.on{outline:2px solid var(--gr);color:var(--gr)}
+  .aln{font-size:14px;line-height:1.35;white-space:pre;letter-spacing:.06em;margin:4px 0 8px}
+  .m{color:var(--gr)} .s{color:var(--rd);font-weight:700} .g{color:var(--am);font-weight:700} .dim{color:var(--mu)}
+  #data{background:var(--pn);border:1px solid var(--bd);border-radius:12px;padding:8px 12px}
+  #data .row{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+  #data label{font-size:10px;letter-spacing:.1em;color:var(--mu);text-transform:uppercase}
+  #list{margin-top:8px;max-height:96px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px}
+  .rd{display:inline-flex;align-items:center;gap:6px;background:#0a0f22;border:1px solid var(--bd);border-radius:6px;padding:1px 4px 1px 8px;font-size:12px}
+  .rd span{cursor:pointer} .rd span:hover{color:var(--cy)} .rd button{padding:0 6px;border:none;background:transparent;color:var(--rd);font-size:14px;line-height:1.3;cursor:pointer}
+  .rd button:hover{color:#fff;background:rgba(251,113,133,.25);border-radius:4px}
+  #msg{font-size:12px;min-height:18px;margin-top:6px;color:var(--mu)} #msg.ok{color:var(--gr)} #msg.no{color:var(--rd)}
+  footer{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:8px 16px 12px;border-top:1px solid var(--bd);background:rgba(7,9,20,.9)}
+  .grp{display:flex;align-items:center;gap:6px;background:var(--pn);border:1px solid var(--bd);border-radius:10px;padding:4px 10px}
+  .grp label{font-size:10px;letter-spacing:.1em;color:var(--mu);text-transform:uppercase}
+  input,select,button{font:inherit;color:#e2e8f0;background:var(--pn2);border:1px solid var(--bd);border-radius:6px;padding:5px 9px;outline:none}
+  input[type=text]{width:130px;letter-spacing:.12em;text-transform:uppercase} #addIn{width:210px} input[type=range]{padding:0;width:80px;accent-color:var(--cy)}
+  button{cursor:pointer} button:hover{border-color:var(--cy)} button:disabled{opacity:.35;cursor:default}
+  button.main{background:linear-gradient(135deg,#0891b2,#7c3aed);border-color:transparent;color:#fff;font-weight:700}
+  #bar{flex:1;min-width:100px;height:6px;background:#1a2244;border-radius:4px;overflow:hidden} #bar div{height:100%;width:0;background:linear-gradient(90deg,var(--cy),var(--mg));transition:width .25s}
+  #cnt{min-width:90px;color:var(--mu)}
+  #qbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--bd);background:linear-gradient(90deg,rgba(8,145,178,.14),rgba(124,58,237,.12))}
+  #qbar .qtitle b{display:block;color:#fff;letter-spacing:.16em;font-size:13px} #qbar .qtitle span{display:block;color:var(--mu);font-size:11px;margin-top:2px} #qbar u{color:var(--cy)}
+  #qbar #q{width:min(340px,100%);font-size:18px;padding:9px 12px;border:2px solid var(--cy);border-radius:10px;background:#0a0f22;color:#fff;letter-spacing:.2em}
+  #qbar #q::placeholder{color:#475569;letter-spacing:.08em;font-size:14px}
+  button.big{font-size:15px;padding:10px 18px;border-radius:10px}
+  #qmsg{flex-basis:100%;font-size:12px;min-height:0;color:var(--mu)} #qmsg.no{color:var(--rd)} #qmsg.ok{color:var(--gr)} #qmsg:empty{display:none}
+  footer{position:sticky;bottom:0;z-index:5}
+  body{overflow:auto} main{min-height:520px}
+  @media (max-width:900px){body{height:auto;min-height:100%}main{grid-template-columns:1fr}#left{overflow:visible}#treeBox{min-height:340px}#addIn{width:150px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>GENISYS2 LAB</b><span>ADD READS · DELETE READS · WATCH THE DISTANCE BE CALCULATED · WATCH THE TREE BE SEARCHED</span></div>
+  <div class="tabs"><button class="tab on" id="tBuild">1 · BUILD</button><button class="tab" id="tSearch">2 · SEARCH</button></div>
+  <div class="chips">
+    <div class="chip"><i>reads</i><b id="sN">0</b></div>
+    <div class="chip"><i>tree height</i><b id="sH">0</b></div>
+    <div class="chip"><i>distance calls</i><b id="sC" style="color:var(--cy)">–</b></div>
+    <div class="chip"><i>brute force</i><b id="sB" style="color:var(--rd)">–</b></div>
+    <div class="chip"><i>results</i><b id="sM" style="color:var(--gr)">–</b></div>
+  </div>
+</header>
+
+<div id="qbar">
+  <div class="qtitle"><b>CHECK A DNA READ</b><span>type any read, then press <u>Check it</u></span></div>
+  <input id="q" type="text" maxlength="20" spellcheck="false" autocomplete="off" placeholder="e.g. CCATCAGACTT">
+  <button id="bCheck" class="main big">▶ Check it</button>
+  <button id="bRnd" title="pick a read from the database and change one letter">Random read</button>
+  <div class="grp"><label>Mode</label><select id="mode"><option value="range">Range: all within τ</option><option value="knn">k-nearest reads</option></select>
+    <input id="par" type="range" min="0" max="6" value="1"><b id="pv" style="min-width:48px">τ = 1</b></div>
+  <div id="qmsg"></div>
+</div>
+
+<main>
+  <section id="left">
+    <div id="stepTitle"></div><div id="stepText"></div><div id="viz"></div><div id="tbl"></div><div id="calc"></div><div id="note"></div>
+  </section>
+  <section id="right">
+    <div id="treeBox">
+      <svg id="tree" preserveAspectRatio="xMidYMin meet"></svg>
+      <div id="legend">
+        <span><i style="background:#2a3566"></i>not reached</span><span><i style="background:var(--bl)"></i>in the tree</span>
+        <span><i style="background:var(--cy)"></i>visited</span><span><i style="background:var(--gr)"></i>match</span>
+        <span><i style="background:var(--am)"></i>best-k</span><span><i style="background:var(--rd)"></i>pruned</span>
+        <span><i style="background:transparent;border:2px solid var(--am)"></i>current</span>
+      </div>
+    </div>
+    <div id="data">
+      <div class="row">
+        <label>Add a read to the database</label><b id="dn" style="color:#fff"></b>
+        <input id="addIn" type="text" placeholder="add read(s): ACGTAC GGT…" spellcheck="false" autocomplete="off">
+        <button id="bAdd" class="main">Add</button>
+        <select id="gsel"><option>7</option><option selected>11</option><option>15</option><option>31</option></select>
+        <button id="bGen">New sample</button><button id="bClear">Delete all</button>
+      </div>
+      <div id="list"></div>
+      <div id="msg"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="grp"><button id="bReset" title="back to the start">⏮</button><button id="bPrev">◀ Prev</button><button id="bNext" class="main">Next ▶</button>
+    <button id="bPlay">⏵ Auto-play</button><button id="bResult" title="jump to the final result">⏭ Result</button>
+    <select id="spd"><option value="2600">slow</option><option value="1600" selected>normal</option><option value="900">fast</option></select></div>
+  <div id="bar"><div></div></div><div id="cnt"></div>
+  <div class="grp"><label>Metric</label><select id="msel"><option value="lev">Levenshtein</option><option value="ham">Hamming</option></select></div>
+</footer>
+
+<script>
+"use strict";
+/* Genisys2 Lab (Member 1). Same algorithm as src/vantage_tree_1.hpp, in JavaScript so it runs in any browser.
+   inside (left): d(vp,r) <= mu     outside (right): d(vp,r) >= mu
+   visit left iff d(q,vp) - tau <= mu      visit right iff d(q,vp) + tau >= mu
+   For k-nearest, tau is the distance of the k-th best read found so far (infinite until k reads are found). */
+const $=id=>document.getElementById(id);
+const BASES='ACGT', MAXLEN=20, MAXREADS=63;
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const fmt=v=>v===Infinity?'∞':v;
+
+/* ---------- distances + the working shown to the user ---------- */
+function dpMatrix(a,b){ // rows = a (query), cols = b (read)
+  const D=Array.from({length:a.length+1},()=>new Array(b.length+1).fill(0));
+  for(let i=0;i<=a.length;i++)D[i][0]=i; for(let j=0;j<=b.length;j++)D[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)
+    D[i][j]=Math.min(D[i-1][j-1]+(a[i-1]!==b[j-1]?1:0),D[i-1][j]+1,D[i][j-1]+1);
+  return D;
+}
+function lev(a,b){return dpMatrix(a,b)[a.length][b.length];}
+function ham(a,b){const m=Math.min(a.length,b.length);let d=Math.max(a.length,b.length)-m;for(let i=0;i<m;i++)if(a[i]!==b[i])d++;return d;}
+let dist=lev, metricKey='lev';
+function trace(a,b,D){ // walk back from the bottom-right cell; returns path cells and edit operations
+  let i=a.length,j=b.length;const path=[[i,j]],ops=[];
+  while(i>0||j>0){
+    if(i>0&&j>0&&D[i][j]===D[i-1][j-1]+(a[i-1]!==b[j-1]?1:0)){ops.push(a[i-1]===b[j-1]?'M':'S');i--;j--;}
+    else if(i>0&&D[i][j]===D[i-1][j]+1){ops.push('D');i--;}
+    else{ops.push('I');j--;}
+    path.push([i,j]);
+  }
+  return {path,ops:ops.reverse()};
+}
+function alignment(a,b){ // returns three display lines (query / marks / read) and the operation list
+  let ops;
+  if(metricKey==='lev'){ops=trace(a,b,dpMatrix(a,b)).ops;}
+  else{ops=[];const m=Math.min(a.length,b.length);for(let i=0;i<m;i++)ops.push(a[i]===b[i]?'M':'S');
+       for(let i=m;i<a.length;i++)ops.push('D');for(let i=m;i<b.length;i++)ops.push('I');}
+  let qa='',ma='',ra='',i=0,j=0;
+  for(const o of ops){
+    if(o==='M'||o==='S'){qa+=`<span class="${o==='M'?'m':'s'}">${a[i]}</span>`;ra+=`<span class="${o==='M'?'m':'s'}">${b[j]}</span>`;ma+=o==='M'?'<span class="m">|</span>':'<span class="s">x</span>';i++;j++;}
+    else if(o==='D'){qa+=`<span class="g">${a[i]}</span>`;ra+='<span class="g">-</span>';ma+=' ';i++;}
+    else{qa+='<span class="g">-</span>';ra+=`<span class="g">${b[j]}</span>`;ma+=' ';j++;}
+  }
+  return {qa,ma,ra,ops,edits:ops.filter(o=>o!=='M').length};
+}
+function alignHTML(a,b){
+  const al=alignment(a,b),c=k=>al.ops.filter(o=>o===k).length;
+  return `<div class="aln"><span class="dim">query </span>${al.qa}\n<span class="dim">      </span>${al.ma}\n<span class="dim">read  </span>${al.ra}</div>`+
+    `<p><span class="m">${c('M')} match</span> · <span class="s">${c('S')} substitution</span> · <span class="g">${c('D')+c('I')} gap</span> → distance <b>${al.edits}</b></p>`;
+}
+let dpTimer=null;
+function calcHTML(q,r,why){ // the working for d(q, r)
+  if(metricKey==='ham'){
+    let top='',mid='',bot='',mis=0;const L=Math.max(q.length,r.length);
+    for(let i=0;i<L;i++){const x=q[i]||'·',y=r[i]||'·',same=q[i]!==undefined&&r[i]!==undefined&&q[i]===r[i];if(!same)mis++;
+      top+=`<span class="${same?'m':'s'}">${x}</span>`;bot+=`<span class="${same?'m':'s'}">${y}</span>`;mid+=same?'<span class="m">|</span>':'<span class="s">x</span>';}
+    return `<div class="calc"><h4>How the distance is calculated · Hamming</h4><p>${why||''}Compare the two reads letter by letter. Every position that differs (or is missing in the shorter read) counts 1.</p>`+
+      `<div class="aln"><span class="dim">query </span>${top}\n<span class="dim">      </span>${mid}\n<span class="dim">read  </span>${bot}</div><p>differences = <b>${mis}</b> → d = <b class="c1">${mis}</b></p></div>`;
+  }
+  const D=dpMatrix(q,r), tr=trace(q,r,D), onPath=new Set(tr.path.map(p=>p[0]+','+p[1]));
+  let h=`<div class="calc"><h4>How the distance is calculated · Levenshtein table</h4><p>${why||''}Cell (i, j) = the fewest edits to turn the first i letters of the query into the first j letters of the read: <b>min( diagonal + (0 if letters equal, else 1), above + 1, left + 1 )</b>. The bottom-right cell is the distance. Gold cells are the path back.</p>`+
+    `<div class="scroll"><table class="dp"><tr><th></th><th></th>${[...r].map(c=>`<th>${c}</th>`).join('')}</tr>`;
+  for(let i=0;i<=q.length;i++){
+    h+=`<tr><th>${i?q[i-1]:''}</th>`;
+    for(let j=0;j<=r.length;j++){const cls=(onPath.has(i+','+j)?'path ':'')+((i===q.length&&j===r.length)?'fin':'');
+      h+=`<td class="${cls}" data-k="${i*(r.length+1)+j}">${D[i][j]}</td>`;}
+    h+='</tr>';
+  }
+  h+=`</table></div><p>d = <b class="c1">${D[q.length][r.length]}</b>  (${tr.ops.filter(o=>o!=='M').length} edit${tr.ops.filter(o=>o!=='M').length===1?'':'s'} on the gold path)</p></div>`;
+  return h;
+}
+function animateDp(){
+  if(dpTimer){clearInterval(dpTimer);dpTimer=null;}
+  const tb=document.querySelector('table.dp'); if(!tb)return;
+  const cells=[...tb.querySelectorAll('td')]; let k=0;
+  const stepMs=clamp(900/cells.length,12,60);
+  dpTimer=setInterval(()=>{ if(k<cells.length){cells[k++].classList.add('on');} else {tb.classList.add('done');clearInterval(dpTimer);dpTimer=null;} },stepMs);
+}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ---------- reads database ---------- */
+let reads=[];
+function mutate(s,r,k){const a=s.split('');for(let i=0;i<k;i++){const p=Math.floor(r()*a.length);let b;do{b=BASES[Math.floor(r()*4)];}while(b===a[p]);a[p]=b;}return a.join('');}
+function genReads(n,seed){
+  const r=rng(seed),k=Math.max(2,Math.round(n/4)),seeds=[],out=[],seen=new Set();
+  for(let i=0;i<k;i++){let s='';for(let j=0;j<6;j++)s+=BASES[Math.floor(r()*4)];seeds.push(s);}
+  for(let i=0;i<n;i++){let s=mutate(seeds[i%k],r,Math.floor(r()*3)),t=0;while(seen.has(s)&&t++<30)s=mutate(s,r,1);seen.add(s);out.push(s);}
+  return out;
+}
+function cleanRead(x){return x.toUpperCase().replace(/[^ACGTN]/g,'');}
+
+/* ---------- build: tree + step list (mirrors vantage_tree_1.hpp) ---------- */
+let tree=[],tree_=[],buildCalls=0,seed=1;
+const sub=(i,o=[])=>{if(i<0)return o;o.push(i);sub(tree_[i].left,o);sub(tree_[i].right,o);return o;};
+function makeBuild(){
+  const nodes=[],order=reads.map((_,i)=>i),R=rng(777+seed),steps=[],shown=[],split=[];let calls=0;
+  const snap=x=>steps.push(Object.assign({shown:shown.slice(),split:split.slice()},x));
+  snap({kind:'intro'});
+  (function rec(lo,hi,depth,parent,side){
+    if(lo>=hi)return -1;
+    const p=lo+Math.floor(R()*(hi-lo));[order[lo],order[p]]=[order[p],order[lo]];
+    const vp=order[lo],id=nodes.length;
+    const nd={id,point:vp,mu:0,left:-1,right:-1,depth,parent,lsize:0,rsize:0,size:hi-lo,x:0,y:0,ix:0,d_:undefined};nodes.push(nd);
+    const members=order.slice(lo,hi);shown.push(id);
+    snap({kind:'pick',node:id,members,vp,side,parent});
+    if(hi-lo>1){
+      const tmp=[];for(let i=lo+1;i<hi;i++){tmp.push([dist(reads[vp],reads[order[i]]),order[i]]);calls++;}
+      snap({kind:'dist',node:id,vp,rows:tmp.map(t=>({read:reads[t[1]],d:t[0]}))});
+      tmp.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+      const mid=(tmp.length-1)>>1;nd.mu=tmp[mid][0];
+      for(let i=0;i<tmp.length;i++)order[lo+1+i]=tmp[i][1];
+      const le=lo+1+mid+1;nd.lsize=le-(lo+1);nd.rsize=hi-le;split.push(id);
+      snap({kind:'split',node:id,vp,mu:nd.mu,mid,rows:tmp.map((t,i)=>({read:reads[t[1]],d:t[0],left:i<=mid}))});
+      nd.left=rec(lo+1,le,depth+1,id,'L');nd.right=rec(le,hi,depth+1,id,'R');
+    } else snap({kind:'leaf',node:id,vp});
+    return id;
+  })(0,reads.length,0,-1,'');
+  snap({kind:'done'});
+  buildCalls=calls;
+  return{nodes,steps};
+}
+
+/* ---------- search: step list (range or k-nearest) ---------- */
+let query='',mode='range',par=1,SB=[],SS=[];
+function makeSearch(){
+  if(!tree.length)return [{kind:'empty'}];
+  const steps=[],vis=[],match=[],pruned=[],heap=[];let calls=0;
+  const k=par, T=()=>mode==='range'?par:(heap.length<k?Infinity:heap[heap.length-1].d);
+  const snap=x=>steps.push(Object.assign({vis:vis.slice(),match:match.slice(),pruned:pruned.slice(),cand:heap.map(h=>h.node),heap:heap.map(h=>({node:h.node,d:h.d})),calls,cur:-1,go:-1,tau:T()},x));
+  snap({kind:'start'});
+  (function visit(ni){
+    const nd=tree[ni],d=dist(query,reads[nd.point]);calls++;vis.push(ni);nd.d_=d;
+    let isM=false,evicted=-1;
+    if(mode==='range'){isM=d<=par;if(isM)match.push(ni);}
+    else{const last=heap[heap.length-1];
+      if(heap.length<k||d<last.d||(d===last.d&&nd.point<last.idx)){isM=true;heap.push({node:ni,d,idx:nd.point});heap.sort((a,b)=>a.d-b.d||a.idx-b.idx);if(heap.length>k)evicted=heap.pop().node;}}
+    snap({kind:'sdist',cur:ni,d,isM,node:ni,evicted});
+    const first=d<=nd.mu?['L','R']:['R','L'];
+    for(const side of first){
+      const ch=side==='L'?nd.left:nd.right;if(ch<0)continue;
+      const t=T(),val=side==='L'?d-t:d+t,ok=side==='L'?val<=nd.mu:val>=nd.mu;
+      if(ok){snap({kind:'test',cur:ni,node:ni,side,ok,d,val,mu:nd.mu,go:ch,size:side==='L'?nd.lsize:nd.rsize,tau:t});visit(ch);}
+      else{const s=sub(ch);s.forEach(x=>pruned.push(x));snap({kind:'test',cur:ni,node:ni,side,ok,d,val,mu:nd.mu,go:ch,size:s.length,tau:t});}
+    }
+  })(0);
+  const finals=(mode==='range'?match.map(i=>({i,d:tree[i].d_})):heap.map(h=>({i:h.node,d:h.d}))).sort((a,b)=>a.d-b.d||tree[a.i].point-tree[b.i].point);
+  if(mode==='knn'){heap.forEach(h=>match.push(h.node));}
+  snap({kind:'end',finals,tau:T()});
+  return steps;
+}
+
+/* ---------- layout + drawing ---------- */
+let NW=66,NH=40,layoutW=800,layoutH=300;
+function layout(){
+  if(!tree.length)return;
+  let k=0,maxD=0;
+  (function go(i){if(i<0)return;go(tree[i].left);tree[i].ix=k++;maxD=Math.max(maxD,tree[i].depth);go(tree[i].right);})(0);
+  const longest=reads.reduce((m,r)=>Math.max(m,r.length),6);
+  NW=clamp(longest*9+14,66,200);
+  const n=tree.length;layoutW=Math.max(760,n*(NW+10));layoutH=maxD*96+90;
+  tree.forEach(t=>{t.x=40+NW/2+t.ix*((layoutW-80-NW)/Math.max(1,n-1));t.y=34+t.depth*96;});
+  if(n===1)tree[0].x=layoutW/2;
+}
+const height=()=>tree.reduce((m,t)=>Math.max(m,t.depth+1),0);
+function curve(a,b){const my=(a.y+b.y)/2;return `M${a.x},${a.y+NH/2} C${a.x},${my} ${b.x},${my} ${b.x},${b.y-NH/2}`;}
+function drawTree(s){
+  const svg=$('tree');
+  if(!tree.length){svg.setAttribute('viewBox','0 0 800 200');svg.innerHTML='<text x="400" y="100" text-anchor="middle" fill="#7b88a8" font-size="16">The database is empty. Add reads below to build a tree.</text>';return;}
+  svg.setAttribute('viewBox',`0 0 ${layoutW} ${layoutH}`);
+  const B=mode==='build';
+  const shown=new Set(B?s.shown:tree.map(t=>t.id)),split=new Set(B?s.split:tree.map(t=>t.id));
+  const vis=new Set(B?[]:(s.vis||[])),mat=new Set(B?[]:(s.match||[])),prn=new Set(B?[]:(s.pruned||[])),cand=new Set(B?[]:(s.cand||[]));
+  const final=!B&&s.kind==='end';
+  let o=`<defs><filter id="gl" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+  if(B)for(const id of split){const p=tree[id];for(const [c,sz] of [[p.left,p.lsize],[p.right,p.rsize]]){
+    if(c>=0&&!shown.has(c)){const ch=tree[c];
+      o+=`<path d="${curve(p,ch)}" fill="none" stroke="#3a4678" stroke-dasharray="4 5" stroke-width="1.4"/><rect x="${ch.x-NW/2}" y="${ch.y-NH/2}" width="${NW}" height="${NH}" rx="9" fill="none" stroke="#3a4678" stroke-dasharray="4 4"/><text x="${ch.x}" y="${ch.y+4}" text-anchor="middle" fill="#5d6b99" font-size="11">${sz} read${sz>1?'s':''}</text>`;}}}
+  for(const t of tree){if(t.parent<0||!shown.has(t.id))continue;const p=tree[t.parent];let col='#46528a',w=1.6,dash='';
+    if(!B){if(prn.has(t.id)){col='#fb7185';dash='5 5';w=1.4;}else if(vis.has(t.id)){col='#22d3ee';w=2.8;}else if(s.go===t.id){col='#fbbf24';w=2.4;}else col='#2a3566';}
+    o+=`<path d="${curve(p,t)}" fill="none" stroke="${col}" stroke-width="${w}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+    if(split.has(p.id)){const mx=(p.x+t.x)/2,my=(p.y+t.y)/2,L=t.id===p.left;
+      o+=`<text x="${mx+(L?-8:8)}" y="${my}" text-anchor="${L?'end':'start'}" font-size="11" fill="${L?'#22d3ee':'#e879f9'}" opacity=".85">${L?'inside ≤ μ':'outside ≥ μ'}</text>`;}}
+  for(const t of tree){if(!shown.has(t.id))continue;
+    let fill='#7c8cff',txt='#0a0f22',stroke='none',sw=0,op=1;
+    if(!B){if(prn.has(t.id)){fill='#fb7185';op=.55;}
+      else if(mat.has(t.id)){fill=(mode==='knn'&&final)?'#fbbf24':'#4ade80';}
+      else if(cand.has(t.id))fill='#fbbf24';
+      else if(vis.has(t.id))fill='#22d3ee';
+      else{fill='#2a3566';txt='#8b97c0';}}
+    const cur=B?s.node===t.id:s.cur===t.id;if(cur){stroke='#fbbf24';sw=3;}
+    const hasMu=split.has(t.id)&&t.size>1,dim=(!B&&fill==='#2a3566'),muCol=dim?'#d4a72c':'#1a1405';
+    o+=`<g opacity="${op}" ${cur?'filter="url(#gl)"':''}><rect x="${t.x-NW/2}" y="${t.y-NH/2}" width="${NW}" height="${NH}" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`+
+       `<text x="${t.x}" y="${t.y+(hasMu?-3:5)}" text-anchor="middle" font-size="13" font-weight="700" fill="${txt}" letter-spacing="1">${reads[t.point]}</text>`+
+       (hasMu?`<text x="${t.x}" y="${t.y+12}" text-anchor="middle" font-size="11" font-weight="700" fill="${muCol}">μ = ${t.mu}</text>`:'')+`</g>`;
+    if(!B&&vis.has(t.id)&&t.d_!==undefined)o+=`<text x="${t.x-5}" y="${t.y-NH/2-5}" text-anchor="end" font-size="12" font-weight="700" fill="${mat.has(t.id)||cand.has(t.id)?'#4ade80':'#67e8f9'}">d = ${t.d_}</text>`;
+    if(!B&&prn.has(t.id)&&tree[t.parent]&&!prn.has(t.parent))o+=`<text x="${t.x}" y="${t.y+NH/2+15}" text-anchor="middle" font-size="12" font-weight="700" fill="#fb7185">✘ skipped</text>`;
+  }
+  svg.innerHTML=o;
+}
+
+/* number-line figure: distances measured FROM the vantage point */
+function numberLine(o){
+  const finite=isFinite(o.tau);
+  const Wd=420,Hd=o.q!==undefined?132:112,pad=24,ax=Hd-30;
+  const maxX=o.maxX,X=v=>pad+(v/maxX)*(Wd-2*pad);
+  let s=`<svg class="nl" viewBox="0 0 ${Wd} ${Hd}">`;
+  s+=`<rect x="${X(0)}" y="18" width="${X(o.mu)-X(0)}" height="${ax-18}" fill="rgba(34,211,238,.13)"/><rect x="${X(o.mu)}" y="18" width="${X(maxX)-X(o.mu)}" height="${ax-18}" fill="rgba(232,121,249,.10)"/>`;
+  if(X(o.mu)-X(0)>70)s+=`<text x="${(X(0)+X(o.mu))/2}" y="32" text-anchor="middle" font-size="10" fill="#22d3ee" letter-spacing="1">INSIDE (left)</text>`;
+  if(X(maxX)-X(o.mu)>70)s+=`<text x="${(X(o.mu)+X(maxX))/2}" y="32" text-anchor="middle" font-size="10" fill="#e879f9" letter-spacing="1">OUTSIDE (right)</text>`;
+  s+=`<line x1="${pad}" y1="${ax}" x2="${Wd-pad}" y2="${ax}" stroke="#56628f"/>`;
+  const step=maxX>14?2:1;
+  for(let i=0;i<=maxX;i+=step)s+=`<line x1="${X(i)}" y1="${ax}" x2="${X(i)}" y2="${ax+4}" stroke="#56628f"/><text x="${X(i)}" y="${ax+15}" text-anchor="middle" font-size="10" fill="#7b88a8">${i}</text>`;
+  s+=`<text x="${Wd-pad}" y="${Hd-2}" text-anchor="end" font-size="9" fill="#7b88a8">distance from the vantage point →</text>`;
+  s+=`<line x1="${X(o.mu)}" y1="12" x2="${X(o.mu)}" y2="${ax}" stroke="#fbbf24" stroke-width="1.6" stroke-dasharray="4 3"/><text x="${X(o.mu)}" y="10" text-anchor="middle" font-size="11" font-weight="700" fill="#fbbf24">μ = ${o.mu}</text>`;
+  if(o.dots){const cnt={};for(const d of o.dots){const k=(cnt[d.x]=(cnt[d.x]||0)+1)-1;s+=`<circle cx="${X(d.x)}" cy="${ax-9-k*12}" r="5" fill="${d.left?'#22d3ee':'#e879f9'}"/>`;}}
+  if(o.q!==undefined){
+    const y=ax-30,a=o.q-o.tau,b=o.q+o.tau,ca=finite?clamp(a,0,maxX):0,cb=finite?clamp(b,0,maxX):maxX;
+    s+=`<line x1="${X(ca)}" y1="${y}" x2="${X(cb)}" y2="${y}" stroke="#fbbf24" stroke-width="5" stroke-linecap="round" opacity=".85"/>`;
+    s+=`<polygon points="${X(o.q)},${y-9} ${X(o.q)+6},${y-3} ${X(o.q)},${y+3} ${X(o.q)-6},${y-3}" fill="#fff"/><text x="${X(o.q)}" y="${y-13}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">q (d=${o.q})</text>`;
+    const L=o.side==='L',col=o.ok?'#4ade80':'#fb7185',exv=finite?(L?a:b):(L?-Infinity:Infinity),ex=finite?clamp(L?a:b,0,maxX):(L?0:maxX);
+    s+=`<circle cx="${X(ex)}" cy="${y}" r="6" fill="none" stroke="${col}" stroke-width="2.5"/><text x="${X(ex)}" y="${y+20}" text-anchor="middle" font-size="10" font-weight="700" fill="${col}">${L?'d−τ':'d+τ'} = ${fmt(exv)}</text>`;
+  }
+  return s+'</svg>';
+}
+
+/* ---------- left panel text ---------- */
+const chips=(arr,vp)=>arr.map(i=>`<span class="chipr ${i===vp?'vp':''}">${reads[i]}</span>`).join('');
+function tbl(rows,cols,mid,clickable){
+  let h=`<table class="t"><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+  rows.forEach((r,i)=>{h+=`<tr class="${mid!==undefined&&i===mid+1?'cut':''} ${clickable?'click':''}" ${clickable?`data-read="${r.read}"`:''}><td><b>${r.read}</b></td><td>${r.d}</td>${r.left!==undefined?`<td><span class="tag ${r.left?'in':'out'}">${r.left?'inside → left':'outside → right'}</span></td>`:''}</tr>`;});
+  return h+'</table>';
+}
+const mName=()=>metricKey==='lev'?'Levenshtein':'Hamming';
+function showBuild(s,k){
+  let title='',text='',viz='',tb='',calc='',note='';
+  if(s.kind==='intro'){
+    title='BUILD · WHAT IS A VP-TREE?';
+    if(!reads.length){text='The database is empty. Add reads in the box under the tree (or press <b>New sample</b>) and the tree is built for you.';}
+    else{text=`Your database has <b>${reads.length}</b> read${reads.length>1?'s':''}. They are strings, so the only thing we can measure between two reads is <b>how far apart they are</b> (${mName()} distance).<br><br>
+    Every node of a VP-tree holds <b class="c3">one read, the vantage point</b>, and <b class="c3">a radius μ</b>. Reads at distance <b class="c1">≤ μ</b> go <b class="c1">left (inside)</b>, the others go <b class="c2">right (outside)</b>. Then we repeat inside each half.<br><br>
+    Press <b>Next ▶</b> to watch it being built, add or delete reads in the box under the tree, or type a DNA read in the <b class="c1">CHECK A DNA READ</b> bar at the top and press <b>Check it</b>.`;
+      tb=`<div style="margin-top:10px">${chips(reads.map((_,i)=>i))}</div>`;
+      note='Splitting at the <b>median</b> gives a balanced tree: height ⌈log₂(n + 1)⌉.';}
+  } else if(s.kind==='pick'){
+    title=`BUILD STEP ${k} · PICK A VANTAGE POINT`+(s.parent>=0?` · ${s.side==='L'?'LEFT':'RIGHT'} GROUP OF <span class="c3">${reads[tree[s.parent].point]}</span>`:' · ROOT');
+    text=`These <b>${s.members.length}</b> read${s.members.length>1?'s are':' is'} still together. Pick <b class="c3">${reads[s.vp]}</b> as the vantage point and make it a node.<br><span style="color:var(--mu)">(The C++ code picks it at random with a fixed seed.)</span>`;
+    tb=`<div style="margin-top:10px">${chips(s.members,s.vp)}</div>`;
+  } else if(s.kind==='dist'){
+    title=`BUILD STEP ${k} · MEASURE DISTANCES TO <span class="c3">${reads[s.vp]}</span>`;
+    text=`Compute the ${mName()} distance from <b class="c3">${reads[s.vp]}</b> to each of the other <b>${s.rows.length}</b> reads. <b>Click a row</b> to see exactly how that number is calculated.`;
+    tb=tbl(s.rows,['read',`d(${reads[s.vp]}, read)`],undefined,true);
+    calc=calcHTML(reads[s.vp],s.rows[0].read,`<b>${reads[s.vp]}</b> vs <b>${s.rows[0].read}</b>. `);
+  } else if(s.kind==='split'){
+    const L=s.rows.filter(r=>r.left).length,Rr=s.rows.length-L,maxX=Math.max(5,s.rows[s.rows.length-1].d+1);
+    title=`BUILD STEP ${k} · SPLIT AT THE MEDIAN → μ = ${s.mu}`;
+    text=`Sort the distances. The <b>median</b> is <b class="c3">μ = ${s.mu}</b>. Distance up to the median goes <b class="c1">inside (left)</b>: <b>${L}</b>. The rest goes <b class="c2">outside (right)</b>: <b>${Rr}</b>.`;
+    viz=numberLine({maxX,mu:s.mu,dots:s.rows.map(r=>({x:r.d,left:r.left})),tau:0});
+    tb=tbl(s.rows,['read','distance','goes to'],s.mid);
+    note=`Each dot is one read placed by its distance from <b>${reads[s.vp]}</b>. Reads exactly at μ may land on either side, which is why the search uses <b>≤</b> and <b>≥</b>.`;
+  } else if(s.kind==='leaf'){
+    title=`BUILD STEP ${k} · LEAF`;text=`Only one read (<b class="c3">${reads[s.vp]}</b>) is left, so there is nothing to split. It becomes a <b>leaf</b>.`;
+  } else {
+    title='BUILD DONE · THE TREE IS READY';
+    text=`All <b>${reads.length}</b> read${reads.length>1?'s are':' is'} nodes; the tree has <b>${height()}</b> level${height()>1?'s':''} and took <b>${buildCalls}</b> distance calculations to build (about n·log₂n).<br><br>
+    <b>Try it:</b> add a read or delete one in the box under the tree. A VP-tree is <b>static</b>, so the whole tree is rebuilt, which costs O(n log n · C). Then open <b>2 · SEARCH</b>.`;
+    note='Build: <b>O(n log n · C)</b> where C is the cost of one distance (Levenshtein O(L²), Hamming O(L)). Space: <b>O(n)</b>.';
+  }
+  return {title,text,viz,tb,calc,note};
+}
+function showSearch(s,k){
+  let title='',text='',viz='',tb='',calc='',note='';const q=query,knn=mode==='knn';
+  const goal=knn?`the <b class="c3">${par}</b> reads closest to the query`:`every read within <b class="c3">τ = ${par}</b> of the query`;
+  if(s.kind==='empty'){title='SEARCH';text='There is nothing to search: the database is empty. Add reads first.';}
+  else if(s.kind==='start'){
+    title=`SEARCH · FIND ${knn?'THE k NEAREST READS':'ALL READS WITHIN τ'}`;
+    text=`Query <b class="c3">${q}</b>. Goal: find ${goal}.<br><br>Brute force would measure all <b class="c5">${reads.length}</b> reads. The VP-tree measures the query against one vantage point at a time and uses the <b>triangle inequality</b> to skip whole groups.`+
+      (knn?`<br><br><b>k-nearest:</b> τ is the distance of the k-th best read found so far. It is <b>∞</b> until k reads are found, then it shrinks, so pruning gets stronger as the search goes on.`:'')+`<br><br>Press <b>Next ▶</b> to start at the root.`;
+    note='Triangle inequality: d(a,c) ≥ | d(a,b) − d(b,c) |.';
+  } else if(s.kind==='sdist'){
+    const nd=tree[s.node];
+    title=`SEARCH STEP ${k} · MEASURE QUERY vs VANTAGE POINT`;
+    let verdict;
+    if(!knn)verdict=s.isM?`<b class="c4">${s.d} ≤ τ (${par}) → MATCH ✔</b>`:`<b class="c5">${s.d} > τ (${par}) → not a match</b>, but the distance still tells us which side(s) to explore.`;
+    else verdict=s.isM?`<b class="c4">It enters the best-${par} list ✔</b>`+(s.evicted>=0?` and pushes out <b>${reads[tree[s.evicted].point]}</b>.`:'.'):`<b class="c5">Not close enough to enter the best-${par} list.</b>`;
+    text=`Visit node <b class="c3">${reads[nd.point]}</b>. Measure the query against it:<div class="eq">d( ${q} , ${reads[nd.point]} ) = <b class="c1">${s.d}</b></div>${verdict}`+
+      (knn?`<br>Best-${par} so far: ${s.heap.length?s.heap.map(h=>`<span class="chipr g">${reads[tree[h.node].point]} · ${h.d}</span>`).join(''):'(empty)'}<br>Current radius τ = <b class="c3">${fmt(s.tau)}</b>`:'')+
+      `<br><br>${nd.left<0&&nd.right<0?'This node is a leaf: nothing below it.':`Its radius is <b class="c3">μ = ${nd.mu}</b>. Next we test each side.`}`;
+    calc=calcHTML(q,reads[nd.point],`<b>${q}</b> vs <b>${reads[nd.point]}</b>. `);
+    note=`Distance calls so far: <b>${s.calls}</b> of ${reads.length}.`;
+  } else if(s.kind==='test'){
+    const nd=tree[s.node],L=s.side==='L',name=L?'LEFT (inside)':'RIGHT (outside)',t=s.tau,inf=!isFinite(t);
+    title=`SEARCH STEP ${k} · CAN THE ${name.toUpperCase()} GROUP CONTAIN AN ANSWER?`;
+    const why=L?`Every inside read r has d(vp,r) ≤ μ, so d(q,r) ≥ d − μ. If <b>d − τ &gt; μ</b>, all of them are farther than τ from q.`
+               :`Every outside read r has d(vp,r) ≥ μ, so d(q,r) ≥ μ − d. If <b>d + τ &lt; μ</b>, all of them are farther than τ from q.`;
+    const cmp=L?`${s.d} − ${fmt(t)} = <b>${fmt(s.val)}</b>  ${s.ok?'≤':'&gt;'}  μ = <b>${s.mu}</b>`:`${s.d} + ${fmt(t)} = <b>${fmt(s.val)}</b>  ${s.ok?'≥':'&lt;'}  μ = <b>${s.mu}</b>`;
+    text=`${why}<div class="eq">${cmp}</div>`+(inf?`<span style="color:var(--mu)">τ is still ∞ (fewer than ${par} reads found), so nothing can be pruned yet.</span><br>`:'')+
+      (s.ok?`<b class="c4">The search ball can reach the ${L?'inside':'outside'} region → <u>visit</u> the ${L?'left':'right'} child.</b>`
+           :`<b class="c5">The search ball cannot reach the ${L?'inside':'outside'} region → <u>PRUNE</u>: skip ${s.size} read${s.size>1?'s':''} without measuring them.</b>`);
+    viz=numberLine({maxX:Math.max(6,s.mu+2,s.d+(inf?0:t)+1),mu:s.mu,q:s.d,tau:t,side:s.side,ok:s.ok});
+    note=s.ok?`The code checks the side where the query lies first (d ${s.d<=s.mu?'≤':'>'} μ → ${s.d<=s.mu?'left':'right'} first).`
+             :`<b>This is the speed-up</b>: ${s.size} distance calculation${s.size>1?'s':''} saved with one comparison.`;
+  } else {
+    const brute=reads.map(r=>dist(query,r)).sort((a,b)=>a-b);
+    const bf=knn?brute.slice(0,par):brute.filter(x=>x<=par);
+    const same=bf.length===s.finals.length&&bf.every((d,i)=>d===s.finals[i].d);
+    title='SEARCH DONE · RESULT';
+    text=`The tree measured the query against <b class="c1">${s.calls}</b> reads instead of <b class="c5">${reads.length}</b> (<b class="c4">${Math.max(0,Math.round((1-s.calls/reads.length)*100))}% saved</b>).<br><br>`+
+      (s.finals.length?`${knn?`The ${s.finals.length} nearest`:'Matches within τ = '+par}:<br>${s.finals.map(f=>`<span class="chipr g">${reads[tree[f.i].point]} · d=${f.d}</span>`).join('')}`:`No read is within τ = ${par} of the query.`)+
+      `<br><br>Brute-force check: ${same?'<b class="c4">identical distances ✔</b>':'<b class="c5">different ✘</b>'}.`;
+    if(s.finals.length){calc=`<div class="calc"><h4>How the reads match · alignment of the query to each result</h4>`+
+      s.finals.slice(0,4).map(f=>`<p><b>${reads[tree[f.i].point]}</b> (d = ${f.d})</p>${alignHTML(q,reads[tree[f.i].point])}`).join('')+
+      `<p class="dim">| match · x substitution · gold letters and “-” are insertions / deletions.${s.finals.length>4?' Showing the first 4.':''}</p></div>`;}
+    note=`Query time: <b>O(log n · C)</b> typical, <b>O(n · C)</b> worst case (large τ).`;
+  }
+  return {title,text,viz,tb,calc,note};
+}
+
+/* ---------- UI state ---------- */
+let mode_='build',idx=0,timer=null;
+let tab='build';
+function steps(){return tab==='build'?SB:SS;}
+function render(){
+  const st=steps(),s=st[Math.min(idx,st.length-1)],total=st.length-1;
+  const r=tab==='build'?showBuild(s,idx):showSearch(s,idx);
+  $('stepTitle').innerHTML=r.title;$('stepText').innerHTML=r.text;$('viz').innerHTML=r.viz;$('tbl').innerHTML=r.tb;$('calc').innerHTML=r.calc;
+  $('note').innerHTML=r.note?`<div class="box ${s.kind==='test'&&!s.ok?'r':(s.kind==='end'||s.kind==='done')?'g':''}">${r.note}</div>`:'';
+  mode=$('mode').value; // keep global in sync with the control
+  drawTree(s);animateDp();
+  document.querySelectorAll('#tbl tr.click').forEach(tr=>tr.onclick=()=>{
+    document.querySelectorAll('#tbl tr.click').forEach(x=>x.classList.remove('sel'));tr.classList.add('sel');
+    $('calc').innerHTML=calcHTML(reads[s.vp],tr.dataset.read,`<b>${reads[s.vp]}</b> vs <b>${tr.dataset.read}</b>. `);animateDp();});
+  const first=document.querySelector('#tbl tr.click');if(first)first.classList.add('sel');
+  $('bar').firstChild.style.width=(total?Math.min(idx,total)/total*100:0)+'%';$('cnt').textContent=`step ${Math.min(idx,total)} / ${total}`;
+  $('bPrev').disabled=idx===0;$('bNext').disabled=idx>=total;
+  $('sN').textContent=reads.length;$('sH').textContent=height();$('dn').textContent=`(${reads.length})`;
+  if(tab==='search'&&s.calls!==undefined){$('sC').textContent=s.calls;$('sB').textContent=reads.length;
+    $('sM').textContent=s.kind==='end'?s.finals.length:(mode==='knn'?s.heap.length:s.match.length);}
+  else{$('sC').textContent=tab==='build'?buildCalls:'–';$('sB').textContent='–';$('sM').textContent='–';}
+  if(idx>=total)stopPlay();
+}
+function go(i){const t=steps().length-1;idx=clamp(i,0,t);render();}
+function stopPlay(){if(timer){clearInterval(timer);timer=null;}$('bPlay').textContent='⏵ Auto-play';}
+function play(){if(timer){stopPlay();return;}const t=steps().length-1;if(idx>=t)idx=0;$('bPlay').textContent='⏸ Pause';render();timer=setInterval(()=>go(idx+1),+$('spd').value);}
+function setTab(t){stopPlay();tab=t;idx=0;$('tBuild').classList.toggle('on',t==='build');$('tSearch').classList.toggle('on',t==='search');if(t==='search')refreshSearch();render();}
+
+function refreshSearch(){
+  query=cleanRead($('q').value);mode=$('mode').value;par=+$('par').value;
+  $('pv').textContent=(mode==='range'?'τ = ':'k = ')+par;
+  if(!query&&reads.length){randomQuery();}
+  SS=query||!tree.length?makeSearch():[{kind:'start',vis:[],match:[],pruned:[],cand:[],heap:[],calls:0,tau:0}];
+}
+function randomQuery(){if(!reads.length){$('q').value='';query='';return;}const r=rng(Date.now()&0xffff);query=mutate(reads[Math.floor(r()*reads.length)],r,1);$('q').value=query;}
+
+/* ---------- editing the database ---------- */
+function say(t,cls){const m=$('msg');m.textContent=t;m.className=cls||'';}
+function rebuild(msg,cls){
+  stopPlay();
+  const b=makeBuild();tree=b.nodes;tree_=tree;SB=b.steps;layout();
+  renderList();
+  if(tab==='search'){refreshSearch();idx=0;}else{idx=SB.length-1;}
+  say(msg+(reads.length?` Tree rebuilt: ${reads.length} reads, height ${height()}, ${buildCalls} distance calls.`:''),cls||'ok');
+  render();
+}
+function renderList(){
+  const L=$('list');L.innerHTML='';
+  reads.forEach((r,i)=>{const d=document.createElement('div');d.className='rd';
+    const sp=document.createElement('span');sp.textContent=r;sp.title='click to use as the query';sp.onclick=()=>{$('q').value=r;if(tab==='search'){refreshSearch();idx=0;render();}say(`Query set to ${r}.`,'ok');};
+    const bt=document.createElement('button');bt.textContent='×';bt.title='delete this read';bt.setAttribute('aria-label','delete '+r);bt.onclick=()=>deleteRead(i);
+    d.appendChild(sp);d.appendChild(bt);L.appendChild(d);});
+}
+function addReads(text){
+  const parts=text.split(/[\s,;]+/).filter(Boolean);let added=0;const bad=[];
+  for(const p of parts){const c=cleanRead(p);
+    if(!c||c!==p.toUpperCase()){bad.push(p);continue;}
+    if(c.length>MAXLEN){bad.push(p+' (longer than '+MAXLEN+')');continue;}
+    if(reads.includes(c)){bad.push(p+' (already there)');continue;}
+    if(reads.length>=MAXREADS){bad.push(p+' (limit '+MAXREADS+' reads)');continue;}
+    reads.push(c);added++;}
+  const hint=bad.some(x=>!/\(/.test(x))?' Use only the letters A, C, G, T (N = unknown).':'';
+  if(!added){say(bad.length?'Not added: '+bad.join(', ')+'.'+hint:'Type a read first, for example ACGTAC.','no');return;}
+  rebuild(`Added ${added} read${added>1?'s':''}.`+(bad.length?` Skipped: ${bad.join(', ')}.`:''));
+}
+function deleteRead(i){
+  const r=reads[i];reads.splice(i,1);
+  rebuild(`Deleted ${r}. A VP-tree is static, so the tree was rebuilt from the remaining reads.`);
+}
+function newSample(){seed++;reads=genReads(+$('gsel').value,seed*31+5);randomQuery();rebuild(`Generated ${reads.length} sample reads.`);}
+
+/* ---------- wiring ---------- */
+$('bNext').onclick=()=>{stopPlay();go(idx+1)};$('bPrev').onclick=()=>{stopPlay();go(idx-1)};$('bReset').onclick=()=>{stopPlay();go(0)};
+$('bPlay').onclick=play;$('spd').onchange=()=>{if(timer){stopPlay();play();}};
+$('tBuild').onclick=()=>setTab('build');$('tSearch').onclick=()=>setTab('search');
+$('bAdd').onclick=()=>{addReads($('addIn').value);$('addIn').value='';};
+$('addIn').onkeydown=e=>{if(e.key==='Enter'){addReads($('addIn').value);$('addIn').value='';}};
+$('bGen').onclick=newSample;
+$('bClear').onclick=()=>{if(!reads.length)return;reads=[];rebuild('Deleted all reads.');};
+$('msel').onchange=()=>{metricKey=$('msel').value;dist=metricKey==='lev'?lev:ham;rebuild(`Metric changed to ${mName()}.`);};
+$('bRnd').onclick=()=>{randomQuery();if(tab==='search'){stopPlay();refreshSearch();idx=0;render();}};
+$('q').oninput=e=>{const v=cleanRead(e.target.value);if(v!==e.target.value)e.target.value=v;if(tab==='search'){stopPlay();refreshSearch();idx=0;render();}};
+function paramChange(){const m=$('mode').value,p=$('par');
+  if(m==='range'){p.min=0;p.max=6;}else{p.min=1;p.max=8;}
+  $('pv').textContent=(m==='range'?'τ = ':'k = ')+p.value;if(tab==='search'){stopPlay();refreshSearch();idx=0;render();}}
+$('mode').onchange=()=>{const p=$('par');p.value=$('mode').value==='range'?1:3;paramChange();};
+$('par').oninput=paramChange;
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  if(e.key==='ArrowRight'){stopPlay();go(idx+1);}else if(e.key==='ArrowLeft'){stopPlay();go(idx-1);}else if(e.key===' '){e.preventDefault();play();}});
+
+
+function qsay(t,cls){const m=$('qmsg');m.textContent=t;m.className=cls||'';}
+function checkRead(){
+  const raw=$('q').value,c=cleanRead(raw);
+  if(!reads.length){qsay('The database is empty. Add some reads first, using the box under the tree.','no');return;}
+  if(!c){qsay('Type a DNA read first, using the letters A, C, G, T (N = unknown), for example CCATCAGACTT.','no');return;}
+  $('q').value=c;
+  const dropped=raw.toUpperCase().replace(/\s/g,'')!==c;
+  qsay(dropped?'Some characters were not A, C, G, T or N, so they were ignored.':'','ok');
+  stopPlay();setTab('search');play();
+}
+function showResult(){stopPlay();if(tab!=='search'){setTab('search');}idx=SS.length-1;render();}
+$('bCheck').onclick=checkRead;
+$('bResult').onclick=showResult;
+$('q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();checkRead();}};
+
+/* ---------- boot ---------- */
+seed=1;reads=genReads(11,seed*31+5);randomQuery();$('pv').textContent='τ = 1';
+rebuild('Sample database loaded. Add or delete reads below.');
+</script>
+</body>
+</html>
